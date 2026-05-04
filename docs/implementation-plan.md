@@ -2,12 +2,15 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
+> **Current phase:** Phase 0 complete (feasibility validated). Phase 1 not yet started - no source code committed.
+> Update this marker whenever a phase begins or completes. Cross-check against the latest entry in [journal.md](journal.md) for in-flight work.
+
 ## Phase 0 - Feasibility (DONE)
 
 The two load-bearing assumptions are already validated:
 
-- **gnark can verify Groth16/BN254 inside BLS12-381 in ~5s.** Benchmarked at 840,199 R1CS constraints, 5.26s prove time, 2.4 GB RAM on 20 cores. PLONK/BLS12-381 outer also benchmarked at 51.3s. See [gnark-recursive-verification-benchmarks.md](gnark-recursive-verification-benchmarks.md). Bench repo: https://github.com/dkaidalov/gnark.
-- **Groth16/BLS12-381 verification fits Cardano execution budgets.** Already demonstrated by the snarkjs-Aiken pipeline. See [snarkjs-cardano-aiken-verifiers.md](snarkjs-cardano-aiken-verifiers.md).
+- **gnark can verify Groth16/BN254 inside BLS12-381 in ~5s.** Benchmarked at 840,199 R1CS constraints, 5.26s prove time, 2.4 GB RAM on 20 cores. PLONK/BLS12-381 outer also benchmarked at 51.3s. See [gnark-recursive-verification-benchmarks.md](research/gnark-recursive-verification-benchmarks.md). Bench repo: https://github.com/dkaidalov/gnark.
+- **Groth16/BLS12-381 verification fits Cardano execution budgets.** Already demonstrated by the snarkjs-Aiken pipeline. See [snarkjs-cardano-aiken-verifiers.md](research/snarkjs-cardano-aiken-verifiers.md).
 
 ## Phase 1 - Source proof compatibility audit
 
@@ -72,7 +75,7 @@ Most of the work should be plugin-only - wrapper circuit and verifier reuse from
 
 Now that the gnark Groth16 path is end-to-end, evaluate alternatives without blocking on them.
 
-1. **gnark PLONK/BLS12-381.** Swap the outer prover. Reuse the wrapper circuit. Use the existing snarkjs-Aiken PLONK/BLS12-381 verifier on-chain. Benchmarks already exist: 51.3s prove, 8.2 GB RAM, 2.76M PLONK gates ([gnark-recursive-verification-benchmarks.md](gnark-recursive-verification-benchmarks.md)). Confirm which PLONK variant gnark uses - affects Aiken verifier compatibility.
+1. **gnark PLONK/BLS12-381.** Swap the outer prover. Reuse the wrapper circuit. Use the existing snarkjs-Aiken PLONK/BLS12-381 verifier on-chain. Benchmarks already exist: 51.3s prove, 8.2 GB RAM, 2.76M PLONK gates ([gnark-recursive-verification-benchmarks.md](research/gnark-recursive-verification-benchmarks.md)). Confirm which PLONK variant gnark uses - affects Aiken verifier compatibility.
 2. **Halo2/BLS12-381.** Real research deliverable, not a swap. Halo2 over BLS12-381 is less mature; needs its own benchmark of in-circuit BN254 Groth16 verification, plus a new Aiken verifier (doesn't exist from snarkjs-Aiken work). Parallel track; don't block other deliverables on it.
 3. Pick a backend per use case based on data:
    - Trusted setup acceptable + need speed -> gnark Groth16
