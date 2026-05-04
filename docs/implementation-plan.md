@@ -12,9 +12,9 @@ The two load-bearing assumptions are already validated:
 - **gnark can verify Groth16/BN254 inside BLS12-381 in ~5s.** Benchmarked at 840,199 R1CS constraints, 5.26s prove time, 2.4 GB RAM on 20 cores. PLONK/BLS12-381 outer also benchmarked at 51.3s. See [gnark-recursive-verification-benchmarks.md](research/gnark-recursive-verification-benchmarks.md). Bench repo: https://github.com/dkaidalov/gnark.
 - **Groth16/BLS12-381 verification fits Cardano execution budgets.** Already demonstrated by the snarkjs-Aiken pipeline. See [snarkjs-cardano-aiken-verifiers.md](research/snarkjs-cardano-aiken-verifiers.md).
 
-## Phase 1 - Source proof compatibility audit
+## Phase 1 - Source proof compatibility exploration
 
-Before freezing the wrapper circuit and input format, audit real proof artifacts from the first target systems. This prevents late surprises around public input count, hash conventions, VK formats, byte order, or versioned verifier keys.
+Before freezing the wrapper circuit and input format, explore real proof artifacts from the first target systems. This prevents late surprises around public input count, hash conventions, VK formats, byte order, or versioned verifier keys.
 
 1. Generate one real Groth16/BN254 proof from RISC Zero and one from SP1.
 2. For each source, document:
@@ -65,7 +65,7 @@ This is the first real demo. Hold off on SP1 - RISC Zero will surface lessons th
 
 ## Phase 5 - Second plugin: SP1
 
-Same pattern as Phase 4, applied to SP1. The artifact audit is already done in Phase 1, so this phase should mainly implement and test the SP1 adapter.
+Same pattern as Phase 4, applied to SP1. The artifact exploration is already done in Phase 1, so this phase should mainly implement and test the SP1 adapter.
 
 Most of the work should be plugin-only - wrapper circuit and verifier reuse from Phases 2-3. With two implementations in hand, this is the right point to extract a stable plugin trait/interface for third parties.
 
