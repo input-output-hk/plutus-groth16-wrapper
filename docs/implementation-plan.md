@@ -23,7 +23,7 @@ Before freezing the wrapper circuit and input format, explore real proof artifac
    - verification key format and versioning rules
    - public input count and field encoding
    - journal/public-values hash function
-   - how to convert the proof, VK, and public inputs into gnark witness types
+   - how to convert the proof, VK, and public inputs into gnark witness types; document this precisely enough to serve as the implementation spec for the Phase 4 plugin library
 3. Confirm whether each source can fit one shared wrapper circuit shape.
 4. Lock the MVP canonical witness format before setup. Preferred shape: secret witnesses are `(inner_VK, inner_proof, inner_public_inputs)`; public outputs are `(VKHash, InputCommitment)`. The circuit must verify the inner proof against the actual inner public inputs, then commit to those inputs.
 
@@ -55,8 +55,11 @@ Pick gnark Groth16/BLS12-381 as the first outer backend (fastest, best-documente
 This is the first real demo. Hold off on SP1 - RISC Zero will surface lessons that simplify SP1.
 
 1. Generate a real RISC Zero proof for a small program (SHA preimage or Fibonacci). Bonsai or local proving - whichever is faster.
-2. Build the RISC Zero plugin using the Phase 1 schema: parse the proof bundle, verify source-level metadata, compute/validate the public input commitment, and emit the canonical wrapper witness.
-3. Feed the plugin output to the Phase 2 wrapper. Generate the outer BLS12-381 proof.
+2. Build the RISC Zero plugin: takes a `Receipt`, validates it is a Groth16 receipt, extracts the proof bundle, computes/validates the public input commitment, and emits the canonical wrapper witness. Plugin form factor is **not yet decided** — evaluate before Phase 4 starts:
+   - **Rust library crate** (`risc0-zkwrap`): host programs import it directly, mirroring `risc0-ethereum` ergonomics. Study `risc0-ethereum` as the reference. Requires solving the Go/Rust boundary for the gnark proving step (subprocess or bundled binary — both add distribution complexity; see Phase 7 note).
+   - **Standalone CLI tool**: simpler to ship initially; host programs call it as a separate step. Less ergonomic but avoids the language boundary problem.
+   - Decide based on Phase 4 experience and user feedback.
+3. Feed the plugin output to the Phase 2 wrapper (gnark, Go). Generate the outer BLS12-381 proof.
 4. Generate the matching Aiken verifier (Phase 3) and submit to preview testnet.
 
 **Exit:** a transaction on preview that verifies a RISC Zero zkVM execution. Document the full pipeline (commands, files, timings) - this becomes the tutorial.
@@ -93,6 +96,7 @@ Defer until at least Phase 4 exists - can't design ergonomics for an unshipped p
    - `zkwrap setup` - one-time outer trusted setup
    - `zkwrap wrap --plugin risc0 --proof <path> --vk <path>` - produces an outer proof
    - `zkwrap gen-verifier --vk <outer-vk> --out <dir>` - emits Aiken module
+   - **Alternative form factor:** the gnark circuit and proving logic must stay in Go (gnark is a Go DSL), but the user-facing CLI could be a Rust binary that calls a compiled Go gnark binary as a subprocess over a JSON stdio protocol. Evaluate after Phase 4 exists — if Rust is preferred for distribution, ergonomics, or Cardano ecosystem fit, the two-binary model is straightforward.
 3. Get feedback from one or two real users (RISC Zero or SP1 devs trying to ship to Cardano). Then decide whether an SDK or JS/TS port is worth the cost. Don't build all three speculatively.
 
 **Exit:** working CLI that reproduces the Phase 4 demo with three commands.

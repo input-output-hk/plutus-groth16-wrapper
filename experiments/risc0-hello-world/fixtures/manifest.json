@@ -1,0 +1,21 @@
+{
+  "guest": "multiply(17, 23)",
+  "image_id_hex": "2bc2287e688aaf25754b3c5ab4f1b027e4dd0d51a2c05dc4e53e06961d89005a",
+  "image_id_words_decimal": [
+    2116600363,
+    632261224,
+    1513900917,
+    665907636,
+    1359863268,
+    3294478498,
+    2516991717,
+    1509984541
+  ],
+  "journal_bytes": 8,
+  "journal_decoded_u64": 391,
+  "journal_hex": "8701000000000000",
+  "proving_mode": "groth16_local",
+  "risc0_zkvm_version": "3.0.5",
+  "seal_bytes": 256,
+  "seal_hex_prefix_32b": "05209c4d5efa297e4d086072a38e2e7ca73881b94621ed7734eec1ea7c662aa3"
+}

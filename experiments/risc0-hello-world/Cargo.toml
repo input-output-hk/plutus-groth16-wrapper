@@ -11,4 +11,5 @@ prove = ["risc0-zkvm/prove"]
 [dependencies]
 hello-world-methods = { path = "methods" }
 risc0-zkvm = { version = "^3.0.5" }
+serde_json = { version = "1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
