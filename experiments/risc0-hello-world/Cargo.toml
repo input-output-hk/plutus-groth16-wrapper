@@ -9,7 +9,13 @@ default = []
 prove = ["risc0-zkvm/prove"]
 
 [dependencies]
+ark-bn254 = { version = "0.5.0" }
+ark-ff = { version = "0.5.0" }
+ark-groth16 = { version = "0.5" }
+ark-serialize = { version = "0.5" }
 hello-world-methods = { path = "methods" }
+risc0-circuit-recursion = { version = "=4.0.4" }
+risc0-groth16 = { version = "=3.0.4" }
 risc0-zkvm = { version = "^3.0.5" }
 serde_json = { version = "1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

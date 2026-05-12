@@ -1,0 +1,16 @@
+{
+  "inputs": [
+    "0x0000000000000000000000000000000041af18736dc9d7921c859fc95ac84da5",
+    "0x00000000000000000000000000000000561f8c992a424deb37ccdf4e19c0e7db",
+    "0x00000000000000000000000000000000ffaa82359776e593485c78496690ad7c",
+    "0x0000000000000000000000000000000032a41bfcc6e375f57e4f4e34d25a4f21",
+    "0x04446e66d300eb7fb45c9726bb53c793dda407a62e9601618bb43c5c14657ac0"
+  ],
+  "labels": [
+    "a0: split_digest(control_root).0  = Fr(low  16B of big-endian control_root)",
+    "a1: split_digest(control_root).1  = Fr(high 16B of big-endian control_root)",
+    "c0: split_digest(claim_digest).0  = Fr(low  16B of big-endian claim_digest)",
+    "c1: split_digest(claim_digest).1  = Fr(high 16B of big-endian claim_digest)",
+    "id: Fr(reverse_bytes(BN254_IDENTITY_CONTROL_ID))"
+  ]
+}
