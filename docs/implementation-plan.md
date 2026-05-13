@@ -2,8 +2,8 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 0 complete (feasibility validated). Phase 1 not yet started - no source code committed.
-> Update this marker whenever a phase begins or completes. Cross-check against the latest entry in [journal.md](journal.md) for in-flight work.
+> **Current phase:** Phase 1 in progress. See [journal.md](journal.md) for latest status.
+> Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)
 
@@ -16,18 +16,23 @@ The two load-bearing assumptions are already validated:
 
 Before freezing the wrapper circuit and input format, explore real proof artifacts from the first target systems. This prevents late surprises around public input count, hash conventions, VK formats, byte order, or versioned verifier keys.
 
-1. Generate one real Groth16/BN254 proof from RISC Zero and one from SP1.
-2. For each source, document:
-   - proof system and curve
-   - proof byte layout and endianness
-   - verification key format and versioning rules
-   - public input count and field encoding
-   - journal/public-values hash function
-   - how to convert the proof, VK, and public inputs into gnark witness types; document this precisely enough to serve as the implementation spec for the Phase 4 plugin library
-3. Confirm whether each source can fit one shared wrapper circuit shape.
-4. Lock the MVP canonical witness format before setup. Preferred shape: secret witnesses are `(inner_VK, inner_proof, inner_public_inputs)`; public outputs are `(VKHash, InputCommitment)`. The circuit must verify the inner proof against the actual inner public inputs, then commit to those inputs.
+**RISC Zero — done:**
+- Generated a real Groth16/BN254 proof (RISC Zero zkVM 3.0.5, local CPU proving).
+- Extracted and committed all artifacts needed for downstream verification: `seal.bin` (proof), `vk.json` (snarkjs-compatible VK), `public_inputs.json` (5 BN254 Fr elements), `claim_digest.bin`, `control_root.bin`, `bn254_control_id.bin`, `journal.bin`, `image_id.bin`. See `experiments/risc0-hello-world/fixtures/`.
 
-**Exit:** documented RISC Zero and SP1 artifact schemas, plus a final MVP wrapper input/output schema.
+**RISC Zero — remaining:**
+- Verify fixtures end-to-end with gnark's BN254 Groth16 verifier (`experiments/risc0-gnark-verify/`). This forces every format conversion question (byte order, G2 coordinate convention, public witness shape) to be answered concretely before touching the wrapper circuit.
+
+**SP1 — not started:**
+- Generate a real SP1 Groth16/BN254 proof for a trivial program.
+- Extract equivalent fixtures. Same structure as RISC Zero — the diff between the two will drive the witness schema decision.
+- Verify fixtures end-to-end with the same gnark verifier.
+
+**Schema lock — not started:**
+- Compare RISC Zero and SP1 artifact shapes. Lock the MVP canonical witness format: secret witnesses `(inner_VK, inner_proof, inner_public_inputs)`; public outputs `(VKHash, InputCommitment)`.
+- Format docs (`docs/research/risc0-artifact-format.md`, `docs/research/sp1-artifact-format.md`) follow from the gnark experiments — write them after, not before.
+
+**Exit:** both proofs verified in gnark standalone, witness schema locked.
 
 ## Phase 2 - Wrapper circuit MVP (gnark Groth16/BLS12-381)
 
