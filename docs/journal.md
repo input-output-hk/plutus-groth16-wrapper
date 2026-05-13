@@ -19,6 +19,27 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 - Links:
 ```
 
+## 2026-05-12 - RISC Zero Groth16 Fixture Extraction
+
+Work done:
+- Implemented `experiments/risc0-hello-world/src/bin/dump_groth16.rs` — proves a sample computation with `ProverOpts::groth16()` and extracts all data needed for downstream BN254 Groth16 verification:
+  - `seal.bin` — raw Groth16 proof (A, B, C elliptic curve points)
+  - `vk.json` — verifying key in snarkjs-compatible JSON format
+  - `public_inputs.json` — 5 BN254 Fr field elements passed to the verifier
+  - `claim_digest.bin` — hash of the execution result (proof-specific)
+  - `control_root.bin` / `bn254_control_id.bin` — RISC Zero circuit version identifiers (fixed per risc0 release)
+  - `journal.bin` / `image_id.bin` — guest output and program identity
+- Added a self-verification cross-check: reads fixtures back and runs `risc0_groth16::Verifier` to confirm encoding is correct.
+- Documented fixture roles and public input derivation in `fixtures/README.md`.
+
+Findings:
+- VK is system-wide (not per guest program) — fixed for a given risc0 release.
+- `control_root` and `bn254_control_id` are enforced as public inputs by the Groth16 circuit itself, binding the proof to a specific RISC Zero version.
+
+Insight — wrapper plugin as a library:
+- The risc0 plugin could be a Rust library crate that host programs import directly, rather than a standalone CLI tool. The library would extract proof artifacts in the format expected by the gnark BLS wrapper and write them to disk (or return them in-memory). This would significantly reduce developer friction — no separate tool invocation, no format mismatch, just a function call inside the existing host program.
+- Exact artifact formats (binary vs JSON, file layout) are not decided yet and should be pinned once the gnark side is understood.
+
 ## 2026-05-04 - LLM Development Workflow Setup
 
 Context:
@@ -40,3 +61,4 @@ Findings:
 Open questions:
 - Exact external dependency workspace layout is still undecided, though a sibling directory such as `../groth16-wrapper-deps/` looks preferable to vendoring RISC Zero and SP1 into this repository.
 - A dependency lock/notes format should be added once real RISC Zero and SP1 artifact audits begin.
+
