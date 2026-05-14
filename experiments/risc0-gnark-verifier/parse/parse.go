@@ -1,4 +1,4 @@
-package main
+package parse
 
 import (
 	"encoding/hex"
@@ -13,43 +13,15 @@ import (
 	bn254groth16 "github.com/consensys/gnark/backend/groth16/bn254"
 )
 
-const fixturesDir = "../risc0-hello-world/fixtures"
-
-func main() {
-	vk, err := loadVK(fixturesDir + "/vk.json")
-	die("load vk", err)
-
-	proof, err := loadSeal(fixturesDir + "/seal.bin")
-	die("load seal", err)
-
-	pubInputs, err := loadPublicInputs(fixturesDir + "/public_inputs.json")
-	die("load public inputs", err)
-
-	if err := bn254groth16.Verify(proof, vk, pubInputs); err != nil {
-		fmt.Fprintf(os.Stderr, "FAIL: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("PASS")
-}
-
-func die(msg string, err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "FAIL: %s: %v\n", msg, err)
-		os.Exit(1)
-	}
-}
-
-// ---- VK ----
-
 type vkRaw struct {
-	IC       [][3]string   `json:"IC"`
-	Alpha1   [3]string     `json:"vk_alpha_1"`
-	Beta2    [][2]string   `json:"vk_beta_2"`
-	Gamma2   [][2]string   `json:"vk_gamma_2"`
-	Delta2   [][2]string   `json:"vk_delta_2"`
+	IC     [][3]string `json:"IC"`
+	Alpha1 [3]string   `json:"vk_alpha_1"`
+	Beta2  [][2]string `json:"vk_beta_2"`
+	Gamma2 [][2]string `json:"vk_gamma_2"`
+	Delta2 [][2]string `json:"vk_delta_2"`
 }
 
-func loadVK(path string) (*bn254groth16.VerifyingKey, error) {
+func LoadVK(path string) (*bn254groth16.VerifyingKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -65,7 +37,6 @@ func loadVK(path string) (*bn254groth16.VerifyingKey, error) {
 		return nil, fmt.Errorf("vk_alpha_1: %w", err)
 	}
 	// snarkjs G2 format: [[A0_dec, A1_dec], [A0_dec, A1_dec], ["1","0"]]
-	// Confirmed against gnark-crypto G2 generator and RISC Zero verifier source.
 	if err := parseG2Dec(&vk.G2.Beta, raw.Beta2); err != nil {
 		return nil, fmt.Errorf("vk_beta_2: %w", err)
 	}
@@ -89,9 +60,7 @@ func loadVK(path string) (*bn254groth16.VerifyingKey, error) {
 	return vk, nil
 }
 
-// ---- Proof ----
-
-func loadSeal(path string) (*bn254groth16.Proof, error) {
+func LoadSeal(path string) (*bn254groth16.Proof, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -102,14 +71,11 @@ func loadSeal(path string) (*bn254groth16.Proof, error) {
 
 	proof := &bn254groth16.Proof{}
 
-	// A (G1): bytes[0:64] — X(32B BE) | Y(32B BE)
+	// A (G1): bytes[0:64]
 	proof.Ar.X.SetBytes(data[0:32])
 	proof.Ar.Y.SetBytes(data[32:64])
 
-	// B (G2): bytes[64:192]
-	// seal.bin G2 layout: [X.A1, X.A0, Y.A1, Y.A0] in big-endian (A1 first).
-	// Derived from RISC Zero's Seal.decode + g2_from_bytes + arkworks G2 serialization.
-	// Opposite ordering from the snarkjs VK JSON which uses [A0, A1].
+	// B (G2): bytes[64:192] — seal.bin layout is [X.A1, X.A0, Y.A1, Y.A0] (A1 first)
 	proof.Bs.X.A1.SetBytes(data[64:96])
 	proof.Bs.X.A0.SetBytes(data[96:128])
 	proof.Bs.Y.A1.SetBytes(data[128:160])
@@ -122,9 +88,7 @@ func loadSeal(path string) (*bn254groth16.Proof, error) {
 	return proof, nil
 }
 
-// ---- Public inputs ----
-
-func loadPublicInputs(path string) (fr.Vector, error) {
+func LoadPublicInputs(path string) (fr.Vector, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -151,8 +115,6 @@ func loadPublicInputs(path string) (fr.Vector, error) {
 	return result, nil
 }
 
-// ---- Helpers ----
-
 func parseG1Dec(p *bn254.G1Affine, xDec, yDec string) error {
 	var x, y big.Int
 	if _, ok := x.SetString(xDec, 10); !ok {
@@ -166,8 +128,7 @@ func parseG1Dec(p *bn254.G1Affine, xDec, yDec string) error {
 	return nil
 }
 
-// parseG2Dec parses a snarkjs G2 Fp2 coord pair.
-// snarkjs JSON convention: coords[i] = [A0_decimal, A1_decimal].
+// parseG2Dec parses a snarkjs G2 coord pair: coords[i] = [A0_decimal, A1_decimal].
 func parseG2Dec(p *bn254.G2Affine, coords [][2]string) error {
 	if len(coords) < 2 {
 		return fmt.Errorf("need 2 coord rows, got %d", len(coords))
