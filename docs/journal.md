@@ -18,6 +18,15 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 - Open questions:
 - Links:
 ```
+Always add new journal entries at the top.
+
+## 2026-05-14 - Recursive gnark Verification of RISC Zero Proof
+
+Work done:
+- Implemented `experiments/risc0-gnark-verifier/` — Go module with a RISC Zero BN254 Groth16 proof verified inside a BLS12-381 Groth16 outer circuit using `gnark/std/recursion/groth16`. ~5s prove time.
+
+Findings:
+- A universal wrapper circuit shared across different inner proof systems (RISC Zero, SP1, etc.) is likely infeasible. The outer circuit's R1CS encodes the inner VK structure — specifically number of public inputs — at compile time. If RISC Zero and SP1 have different numbers of public inputs, they require different outer circuits and therefore different trusted setups. There is no structural workaround: each inner proof system needs its own wrapper circuit and its own setup ceremony.
 
 ## 2026-05-12 - RISC Zero Groth16 Fixture Extraction
 
