@@ -1,0 +1,9 @@
+[package]
+name = "multiply"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+sp1-zkvm = "3.4.0"

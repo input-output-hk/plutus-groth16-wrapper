@@ -1,5 +1,6 @@
 {
   "rust-analyzer.linkedProjects": [
-    "experiments/risc0-hello-world/Cargo.toml"
+    "experiments/risc0-hello-world/Cargo.toml",
+    "experiments/sp1-hello-world/Cargo.toml"
   ]
 }
