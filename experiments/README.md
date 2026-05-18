@@ -31,14 +31,16 @@ Two programs that consume `risc0-hello-world/fixtures/`:
 |---------|-------------|
 | `verify/` | Standalone BN254 Groth16 verification via gnark |
 | `recursive/` | Wraps the BN254 inner proof in a BLS12-381 outer Groth16 proof |
+| `recursive_plonk/` | Wraps the BN254 inner proof in a BLS12-381 outer PLONK proof |
 
 ```bash
 cd risc0-gnark-verifier
 go run ./verify/main.go
 go run ./recursive/main.go
+go run ./recursive_plonk/main.go
 ```
 
-Both should print `PASS`.
+All should print `PASS`.
 
 ---
 
