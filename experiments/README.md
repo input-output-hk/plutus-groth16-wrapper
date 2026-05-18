@@ -77,15 +77,22 @@ Two programs that consume `sp1-hello-world/fixtures/`:
 |---------|-------------|
 | `verify/` | Standalone BN254 Groth16 verification via gnark |
 | `recursive/` | Wraps the BN254 inner proof in a BLS12-381 outer Groth16 proof |
+| `recursive_plonk/` | Wraps the BN254 inner proof in a BLS12-381 outer PLONK proof |
 
 ```bash
 cd sp1-gnark-verifier
 go run ./verify/main.go
 go run ./recursive/main.go
+go run ./recursive_plonk/main.go
 ```
 
-Both should print `PASS`.
+All should print `PASS`.
 
 **SP1 vs RISC Zero:** SP1 has 2 public inputs (`vkey_hash`, `committed_values_digest`);
 RISC Zero has 5. The recursive verifiers use separate outer circuits with `innerNPublic = 2`
 and `innerNPublic = 5` respectively, requiring separate trusted setups.
+
+**Groth16 vs PLONK outer:** Both `recursive/` and `recursive_plonk/` verify the same BN254
+Groth16 inner proof using emulated arithmetic. The difference is the outer proof system:
+Groth16 uses R1CS and a random unsafe trusted setup; PLONK uses a sparse constraint system
+(SCS) and a KZG polynomial commitment scheme (unsafe SRS for testing).
