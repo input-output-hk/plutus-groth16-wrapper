@@ -20,7 +20,23 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
-## 2026-05-17 - SP1 Groth16 Artifact Extraction and gnark Verification
+## 2026-05-19 - PLONK Outer Wrapping for SP1 and RISC Zero
+
+Work done:
+- Added `experiments/sp1-gnark-verifier/recursive_plonk/` — wraps the SP1 BN254 Groth16 inner
+  proof in a BLS12-381 PLONK outer proof using `gnark/backend/plonk` + `frontend/cs/scs`.
+- Added `experiments/risc0-gnark-verifier/recursive_plonk/` — same approach for the RISC Zero
+
+Findings:
+- PLONK wrapping takes ~1 minute to create a proof, roughly
+  10× slower than the Groth16 outer (~5s).
+- Key advantage over Groth16 outer: PLONK uses a universal KZG SRS that is circuit-independent.
+  Groth16 requires a fresh trusted setup per circuit (i.e. per inner proof system / innerNPublic
+  count); PLONK does not — the same SRS covers any circuit up to the supported size bound.
+- Circuit definition is identical in both cases: the outer circuit verifies an emulated BN254
+  Groth16 proof regardless of whether the outer system is Groth16 or PLONK.
+
+## 2026-05-18 - SP1 Groth16 Artifact Extraction and gnark Verification
 
 Work done:
 - Implemented `experiments/sp1-hello-world/` — proves `multiply(17, 23)` with SP1 v3.4.0
