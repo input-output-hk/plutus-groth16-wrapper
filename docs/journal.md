@@ -20,6 +20,19 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-05-17 - SP1 Groth16 Artifact Extraction and gnark Verification
+
+Work done:
+- Implemented `experiments/sp1-hello-world/` — proves `multiply(17, 23)` with SP1 v3.4.0
+  (`native-gnark` feature, no Docker) and writes Groth16/BN254 fixtures to `fixtures/`.
+- Implemented `experiments/sp1-gnark-verifier/` — standalone BN254 verifier and BLS12-381
+  recursive wrapper, mirroring the RISC Zero verifier structure.
+- Documented artifact format in `docs/research/sp1-artifact-format.md`.
+
+Findings:
+- SP1 has **2 public inputs** (`vkey_hash`, `committed_values_digest`) vs RISC Zero's 5.
+- A universal outer circuit covering both is feasible: compile with `innerNPublic = 5`, pad SP1's IC with identity points, enforce extra inputs as zero off-circuit. See `docs/research/sp1-artifact-format.md §9`.
+
 ## 2026-05-14 - Recursive gnark Verification of RISC Zero Proof
 
 Work done:
