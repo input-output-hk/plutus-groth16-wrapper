@@ -55,3 +55,17 @@ The following files are **only edited when the user explicitly asks for it**. Do
 - `docs/decisions/` - create or modify a decision record only when asked, even for architecture-affecting changes. If a change feels architecture-affecting, surface that to the user and propose adding an ADR; do not write one unprompted.
 
 The implementation plan's **Current phase** marker is the one exception: keep it accurate as phases begin and complete, without waiting to be asked.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`input-output-hk/plutus-groth16-wrapper`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: one `CONTEXT.md` at root + `docs/decisions/` for ADRs. See `docs/agents/domain.md`.
