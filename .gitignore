@@ -33,3 +33,6 @@ go.work.sum
 
 # Rust/Cargo build artifacts
 target/
+
+# Go binary outputs (no extension on Linux/macOS)
+zkwrap-gnark/zkwrap-gnark

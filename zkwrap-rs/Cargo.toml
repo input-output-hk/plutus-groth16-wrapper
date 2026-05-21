@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "zkwrap-core",
+    "zkwrap-risc0",
+    "zkwrap-sp1",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"

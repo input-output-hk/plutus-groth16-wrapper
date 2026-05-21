@@ -1,0 +1,7 @@
+[package]
+name = "zkwrap-sp1"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+zkwrap-core = { path = "../zkwrap-core" }
