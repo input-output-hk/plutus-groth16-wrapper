@@ -20,6 +20,25 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-05-21 - Phase 1 Complete: Schema Lock and Architecture
+
+Phase 1 (schema lock) is done. Phase 2 begins.
+
+Work done:
+- Locked canonical inner proof format (`docs/schemas/canonical-inner-proof.md`) — byte-level contract between Rust plugin and Go prover binary.
+- Documented RISC Zero artifact format including journal authentication hash chain (`docs/research/risc0-artifact-format.md`).
+- Written four ADRs and domain glossary (`CONTEXT.md`).
+
+Key decisions:
+- **ADR-0001:** Expose inner public inputs directly as `[VKHash, input_0..input_{MAX-1}]` — no `InputCommitment`. Soundness from the BLS12-381 proof; no on-chain hash recomputation needed.
+- **ADR-0002:** Single wrapper circuit with fixed `MAX_INPUTS`. Unused IC slots padded to identity; Aiken validator checks excess slots are zero.
+- **ADR-0003:** File-based boundary between Rust plugin and Go prover (CGO rejected).
+- **ADR-0004:** Rust plugin crates own Aiken codegen. Generated validator has two layers: generic BLS12-381 verification + system-specific journal auth and zero-checks. Go binary is a pure prover only.
+
+Finding: RISC Zero journal auth is feasible on Cardano — ~4 SHA-256 calls via `tagged_struct`, all using the Cardano native SHA-256 builtin. Tag digests baked as constants at codegen time. SP1 equivalent is 1 SHA-256 call.
+
+Note: the 2026-05-14 finding ("universal circuit infeasible") was wrong — `MAX_INPUTS` with IC padding solves it.
+
 ## 2026-05-19 - PLONK Outer Wrapping for SP1 and RISC Zero
 
 Work done:
