@@ -20,6 +20,16 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-05-21 - risc0-ethereum Architecture Review
+
+Reviewed `../risc0-ethereum/` for spec cross-validation and on-chain design patterns.
+Full notes: `docs/research/risc0-ethereum-architecture.md`.
+
+- All serialization specs confirmed (no corrections needed).
+- Three-layer generation model (snarkJS VK + generated constants + static glue) mirrors ADR-0004.
+- Complete V5.0 test vector in `contracts/test/TestReceiptV5_0.sol` — useful integration fixture.
+- `RiscZeroSetVerifier` documents a Merkle batching pattern worth noting for Phase 3+ scaling.
+
 ## 2026-05-21 - Phase 1 Complete: Schema Lock and Architecture
 
 Phase 1 (schema lock) is done. Phase 2 begins.
