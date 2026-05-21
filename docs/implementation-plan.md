@@ -2,7 +2,7 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 1 in progress. See [journal.md](journal.md) for latest status.
+> **Current phase:** Phase 2 in progress. See [journal.md](journal.md) for latest status.
 > Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)
@@ -12,38 +12,47 @@ The two load-bearing assumptions are already validated:
 - **gnark can verify Groth16/BN254 inside BLS12-381 in ~5s.** Benchmarked at 840,199 R1CS constraints, 5.26s prove time, 2.4 GB RAM on 20 cores. PLONK/BLS12-381 outer also benchmarked at 51.3s. See [gnark-recursive-verification-benchmarks.md](research/gnark-recursive-verification-benchmarks.md). Bench repo: https://github.com/dkaidalov/gnark.
 - **Groth16/BLS12-381 verification fits Cardano execution budgets.** Already demonstrated by the snarkjs-Aiken pipeline. See [snarkjs-cardano-aiken-verifiers.md](research/snarkjs-cardano-aiken-verifiers.md).
 
-## Phase 1 - Source proof compatibility exploration
+## Phase 1 - Source proof compatibility exploration (DONE)
 
 Before freezing the wrapper circuit and input format, explore real proof artifacts from the first target systems. This prevents late surprises around public input count, hash conventions, VK formats, byte order, or versioned verifier keys.
 
 **RISC Zero — done:**
 - Generated a real Groth16/BN254 proof (RISC Zero zkVM 3.0.5, local CPU proving).
-- Extracted and committed all artifacts needed for downstream verification: `seal.bin` (proof), `vk.json` (snarkjs-compatible VK), `public_inputs.json` (5 BN254 Fr elements), `claim_digest.bin`, `control_root.bin`, `bn254_control_id.bin`, `journal.bin`, `image_id.bin`. See `experiments/risc0-hello-world/fixtures/`.
+- Verified fixtures end-to-end with gnark BN254 Groth16 verifier and BLS12-381 recursive wrappers (Groth16 and PLONK outer). See `experiments/risc0-gnark-verifier/`.
+- Documented artifact format: `docs/research/risc0-artifact-format.md`.
 
-**RISC Zero — remaining:**
-- Verify fixtures end-to-end with gnark's BN254 Groth16 verifier (`experiments/risc0-gnark-verify/`). This forces every format conversion question (byte order, G2 coordinate convention, public witness shape) to be answered concretely before touching the wrapper circuit.
+**SP1 — done:**
+- Generated a real Groth16/BN254 proof (SP1 v3.4.0, local CPU proving, `native-gnark` feature).
+- Verified fixtures end-to-end with gnark BN254 Groth16 verifier and BLS12-381 recursive wrappers (Groth16 and PLONK outer). See `experiments/sp1-gnark-verifier/`.
+- Documented artifact format: `docs/research/sp1-artifact-format.md`.
 
-**SP1 — not started:**
-- Generate a real SP1 Groth16/BN254 proof for a trivial program.
-- Extract equivalent fixtures. Same structure as RISC Zero — the diff between the two will drive the witness schema decision.
-- Verify fixtures end-to-end with the same gnark verifier.
+**Schema lock — done:**
+- Compared RISC Zero (5 inputs) and SP1 (2 inputs) artifact shapes. Key divergences: input count, VK format (JSON vs binary), public input encoding (hex vs decimal).
+- Decided: universal wrapper circuit with configurable `MAX_INPUTS` constant; excess inputs padded to zero; Aiken validator per inner system checks the padded slots. See `docs/adr/0002-universal-wrapper-circuit.md`.
+- Decided: inner public inputs exposed as direct outer public signals `[VKHash, input_0..input_{MAX-1}]`, no hash commitment. See `docs/adr/0001-direct-outer-public-signals.md`.
+- Canonical inner proof format locked: `docs/schemas/canonical-inner-proof.md`.
+- File-based boundary between Rust plugin and Go prover: `docs/adr/0003-file-based-plugin-prover-boundary.md`.
+- Domain language captured: `CONTEXT.md`.
 
-**Schema lock — not started:**
-- Compare RISC Zero and SP1 artifact shapes. Lock the MVP canonical witness format: secret witnesses `(inner_VK, inner_proof, inner_public_inputs)`; public outputs `(VKHash, InputCommitment)`.
-- Format docs (`docs/research/risc0-artifact-format.md`, `docs/research/sp1-artifact-format.md`) follow from the gnark experiments — write them after, not before.
-
-**Exit:** both proofs verified in gnark standalone, witness schema locked.
+**Exit criteria met:** both proofs verified in gnark standalone, witness schema locked.
 
 ## Phase 2 - Wrapper circuit MVP (gnark Groth16/BLS12-381)
 
 Pick gnark Groth16/BLS12-381 as the first outer backend (fastest, best-documented; benchmarks already validate it). Defer PLONK and Halo2 to Phase 6.
 
-1. Implement the canonical witness shape selected in Phase 1.
-2. Implement the outer circuit with public outputs `VKHash = hash(VK)` and `InputCommitment = hash(inner_public_inputs)`. Constraints: (a) Groth16.Verify over BN254 via emulated arithmetic using the actual inner public inputs, (b) hash-of-VK matches `VKHash`, (c) hash/commitment of inner public inputs matches `InputCommitment`. Pick the in-circuit hash carefully - Poseidon over the BLS12-381 scalar field is the obvious starting point, but the external digest-to-field convention must match Phase 1.
-3. Run trusted setup once. Save proving key, verification key, SRS.
-4. Generate an outer proof from a hand-crafted inner Groth16/BN254 proof (trivial inner circuit). Verify off-chain with gnark.
+**Outer circuit public inputs design** (settled in Phase 1 schema lock):
+- Public signals: `[VKHash, input_0, ..., input_{MAX_INPUTS-1}]`
+- `VKHash` = in-circuit Poseidon hash (over BLS12-381 Fr) of the inner VK field elements. Hash function choice is gnark-only — the Aiken validator never recomputes it, it only checks `proof_signal[0] == hardcoded_constant`. Poseidon is the right choice: native BLS12-381 field operations, cheapest in-circuit.
+- `input_0..input_{MAX_INPUTS-1}` = inner public inputs wired through directly as outer public signals, padded with zero for unused slots
+- Inner VK and inner proof remain private witnesses
 
-**Exit:** end-to-end off-chain prove + verify on a synthetic inner proof, with documented prove time and proof size.
+**Steps:**
+1. Benchmark the outer circuit constraint count for several `MAX_INPUTS` values (5, 8, 16). Record prove time and RAM. Pick `MAX_INPUTS` and commit it — this value is fixed for the trusted setup lifetime. Add the chosen value to `docs/adr/0002-universal-wrapper-circuit.md`.
+2. Extend the existing `OuterCircuit` struct to add public inputs: wire `VKHash` and `input_0..input_{MAX_INPUTS-1}` as `frontend.Variable` with `gnark:",public"`. Add constraints: (a) Groth16.Verify over BN254 (already working from Phase 1 experiments), (b) in-circuit hash of inner VK bytes matches `VKHash`, (c) inner public inputs are passed through to the public signal slots with zero-padding for unused slots.
+3. Run trusted setup once with the final `MAX_INPUTS`. Save proving key, verification key, SRS to `wrapper/gnark-groth16/`.
+4. Generate an outer proof from a real RISC Zero or SP1 inner proof (Phase 1 fixtures). Verify off-chain with gnark. Confirm `VKHash` and all five input slots appear correctly in the outer proof's public witness.
+
+**Exit:** end-to-end off-chain prove + verify against a real Phase 1 inner proof, with documented prove time, proof size, and `MAX_INPUTS` value recorded in the ADR.
 
 ## Phase 3 - Aiken verifier generation
 

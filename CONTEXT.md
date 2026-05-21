@@ -39,10 +39,10 @@ Wire encoding: G1 = 64 bytes uncompressed (X‖Y big-endian); G2 = 128 bytes unc
 
 ### Outer proof and on-chain
 
-**VKHash**: The hash of the inner VK bytes, exposed as a direct outer public signal. Identifies which inner proof system (and version) was used. Baked as a constant into the Aiken validator at deploy time.
+**VKHash**: An in-circuit Poseidon hash (over BLS12-381 Fr) of the inner VK field elements, exposed as the first outer public signal. Identifies which inner proof system and version was used. The Aiken validator never recomputes this hash — it only checks `proof_signal[0] == hardcoded_constant`, where the constant is computed off-chain once at deploy time. Poseidon is used because it is native BLS12-381 field arithmetic (cheapest in gnark); Cardano never executes it.
 _Avoid_: VK commitment, verifying key hash
 
-**Outer public inputs**: The public inputs to the outer BLS12-381 proof: `[VKHash, input_0, ..., input_{MAX-1}]`. Inner public inputs are exposed directly — not hashed into a commitment.
+**Outer public inputs**: The public inputs to the outer BLS12-381 proof: `[VKHash, input_0, ..., input_{MAX-1}]`. Inner public inputs are exposed directly — not hashed into a commitment. No on-chain hash computation is required anywhere in the Aiken validator.
 _Avoid_: outer public signals, wrapper public outputs
 
 **Aiken validator**: The generated on-chain Cardano script that verifies an outer BLS12-381 proof. Parameterised by both the inner proof system (how many inputs are real, which are zero-checked) and the outer backend (proof format, embedded outer VK points).
