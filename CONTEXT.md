@@ -50,13 +50,13 @@ _Avoid_: Aiken verifier, on-chain verifier, Cardano validator
 
 ### Components
 
-**Plugin**: A Rust library module that converts an inner proof system's native output into a canonical inner proof. One plugin per inner proof system (e.g., `zkwrap-risc0`, `zkwrap-sp1`).
+**Plugin**: A Rust library crate that (1) converts an inner proof system's native output into a canonical inner proof, and (2) generates the Aiken validator for that system. One plugin per inner proof system (e.g., `zkwrap-risc0`, `zkwrap-sp1`). The generated Aiken validator has two layers: a generic BLS12-381 proof verification layer (outer VK embedded as a constant) and a system-specific layer (journal authentication chain, excess-zero checks, VKHash constant). See ADR-0004.
 _Avoid_: adapter, connector, parser
 
-**Prover binary**: The language-native executable that reads a canonical inner proof from disk and runs the outer backend to produce a BLS12-381 outer proof. One binary per outer backend (`zkwrap-gnark` in Go, future `zkwrap-halo2` in Rust).
+**Prover binary**: The language-native executable that reads a canonical inner proof from disk and runs the outer backend to produce a BLS12-381 outer proof. Pure prover — emits `outer_proof.bin` and `outer_vk.bin` only; no Aiken code. One binary per outer backend (`zkwrap-gnark` in Go, future `zkwrap-halo2` in Rust).
 _Avoid_: wrapper prover, outer prover CLI
 
-**Inner system config**: A small metadata file (JSON) produced by a plugin alongside the canonical inner proof. Contains at minimum `n_real` and `system_id`. Used by the prover binary to generate the Aiken validator.
+**Inner system config**: A small metadata file (JSON) produced by a plugin alongside the canonical inner proof. Contains at minimum `n_real` and `system_id`. Used by the plugin's Aiken codegen function to parameterise the Aiken validator template (excess-zero slot count, journal authentication logic).
 _Avoid_: plugin metadata, system manifest
 
 ## Example dialogue
@@ -71,7 +71,7 @@ _Avoid_: plugin metadata, system manifest
 >
 > "Who generates the Aiken validator?"
 >
-> "Also the prover binary — it reads the inner system config (so it knows `n_real = 5` for RISC Zero) and the outer VK, and emits an Aiken module. The validator has `VKHash` baked in as a constant and checks `input_0..input_4` directly. No excess zero-checks for RISC Zero since all 5 slots are real."
+> "The RISC Zero plugin — `zkwrap-risc0`. It calls its codegen function with the inner system config (`n_real = 5`, `system_id = 'risc0-v3'`) and the embedded outer VK bytes. The output is a ready-to-compile Aiken module with `VKHash` baked in as a constant, `input_0..input_4` checked directly, and a journal authentication chain (~4 SHA-256 calls via the `tagged_struct` protocol) so the on-chain validator can verify the raw journal bytes against `inputs[2,3]`. No excess zero-checks for RISC Zero since all 5 slots are real."
 >
 > "What if we later switch to Halo2 as the outer backend?"
 >

@@ -54,25 +54,33 @@ Pick gnark Groth16/BLS12-381 as the first outer backend (fastest, best-documente
 
 **Exit:** end-to-end off-chain prove + verify against a real Phase 1 inner proof, with documented prove time, proof size, and `MAX_INPUTS` value recorded in the ADR.
 
-## Phase 3 - Aiken verifier generation
+## Phase 3 - Aiken validator generation
 
-1. Adapt the existing snarkjs-Aiken Groth16/BLS12-381 verifier as the template.
-2. Add the `VKHash` check. Decide: hardcoded constant baked at codegen (simpler, per-dApp deployments) vs read from datum/redeemer (needed for shared reference scripts).
-3. Add a gnark-to-Aiken compatibility spike before full codegen: generate one gnark Groth16/BLS12-381 proof and make the adapted Aiken verifier pass locally, confirming serialization, point signs, IC ordering, and field encodings.
-4. Build a thin codegen tool that takes the outer VK and emits a ready-to-compile Aiken module. Template-based; don't over-engineer.
-5. Deploy the generated verifier to Cardano preview testnet. Verify a real outer proof from Phase 2. Measure execution units against the current per-tx budget.
+Aiken codegen lives in each Rust plugin crate, not in the Go prover binary. See ADR-0004.
 
-**Exit:** a Phase 2 proof verifies on Cardano preview, execution units recorded.
+Each generated Aiken validator has two layers:
+- **Layer 1 (generic):** BLS12-381 Groth16 verification — outer VK points embedded as constants, pairing check, IC accumulation over the outer public inputs `[VKHash, input_0..input_{MAX-1}]`. Shared structure across all inner systems.
+- **Layer 2 (system-specific):** `VKHash` constant check; excess-zero slot enforcement (e.g., SP1 checks `input_2..input_4 == 0`); journal authentication chain so the validator can verify raw application outputs from the outer public inputs without trusting off-chain code.
+
+Journal auth per system:
+- **RISC Zero:** ~4 SHA-256 calls following `tagged_struct` (`SHA256(SHA256(tag) ‖ children ‖ u32s_LE ‖ count_LE)`). Tag digests (`"risc0.ReceiptClaim"`, `"risc0.Output"`) are constants baked into the Aiken module. Result matches `inputs[2,3]` via split_digest. All SHA-256 — Cardano native builtin.
+- **SP1:** 1 SHA-256 call: `SHA256(public_values_bytes) == inputs[1]`.
+
+**Steps:**
+1. Compatibility spike: generate one gnark Groth16/BLS12-381 outer proof (Phase 2) and hand-write an Aiken verifier for it locally. Confirm serialization, point signs, IC ordering, and field encodings against Cardano preview.
+2. Build the Layer 1 Aiken template (generic BLS12-381 verifier). Parameterised by: outer VK points, `MAX_INPUTS`.
+3. Build Layer 2 for RISC Zero in `zkwrap-risc0`: `VKHash` constant, `n_real = 5` (no excess zero-checks), journal auth chain from `tagged_struct`.
+4. Expose `gen_aiken_validator(outer_vk_bytes: &[u8], config: &InnerSystemConfig) -> String` in `zkwrap-risc0`. Embed `outer_vk.bin` from Phase 2 trusted setup via `include_bytes!`.
+5. Aiken testing. Verify with Aiken unit tests a real Phase 2 outer proof. Measure execution units.
+
+**Exit:** a Phase 2 proof verifies on Cardano preview with journal auth, execution units recorded.
 
 ## Phase 4 - First plugin: RISC Zero, end-to-end
 
 This is the first real demo. Hold off on SP1 - RISC Zero will surface lessons that simplify SP1.
 
 1. Generate a real RISC Zero proof for a small program (SHA preimage or Fibonacci). Bonsai or local proving - whichever is faster.
-2. Build the RISC Zero plugin: takes a `Receipt`, validates it is a Groth16 receipt, extracts the proof bundle, computes/validates the public input commitment, and emits the canonical wrapper witness. Plugin form factor is **not yet decided** — evaluate before Phase 4 starts:
-   - **Rust library crate** (`risc0-zkwrap`): host programs import it directly, mirroring `risc0-ethereum` ergonomics. Study `risc0-ethereum` as the reference. Requires solving the Go/Rust boundary for the gnark proving step (subprocess or bundled binary — both add distribution complexity; see Phase 7 note).
-   - **Standalone CLI tool**: simpler to ship initially; host programs call it as a separate step. Less ergonomic but avoids the language boundary problem.
-   - Decide based on Phase 4 experience and user feedback.
+2. Build the RISC Zero plugin (`zkwrap-risc0`, Rust library crate): takes a `Receipt`, validates it is a Groth16 receipt, extracts the proof bundle, validates the public inputs against the receipt claim, and writes the canonical inner proof directory to disk. Also exposes `gen_aiken_validator` (see Phase 3). Host programs import the crate directly, mirroring `risc0-ethereum` ergonomics. The Go/Rust language boundary is handled by the file-based IPC convention (ADR-0003): the Rust plugin writes files, the Go prover binary reads them.
 3. Feed the plugin output to the Phase 2 wrapper (gnark, Go). Generate the outer BLS12-381 proof.
 4. Generate the matching Aiken verifier (Phase 3) and submit to preview testnet.
 
