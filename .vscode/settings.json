@@ -1,7 +1,8 @@
 {
   "rust-analyzer.linkedProjects": [
     "experiments/risc0-hello-world/Cargo.toml",
-    "experiments/sp1-hello-world/Cargo.toml"
+    "experiments/sp1-hello-world/Cargo.toml",
+    "zkwrap-rs/Cargo.toml"
   ],
   "makefile.configureOnOpen": false
 }
