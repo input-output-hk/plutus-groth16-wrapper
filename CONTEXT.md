@@ -39,10 +39,10 @@ Wire encoding: G1 = 64 bytes uncompressed (X‖Y big-endian); G2 = 128 bytes unc
 
 ### Outer proof and on-chain
 
-**VKHash**: An in-circuit Poseidon hash (over BLS12-381 Fr) of the inner VK field elements, exposed as the first outer public signal. Identifies which inner proof system and version was used. The Aiken validator never recomputes this hash — it only checks `proof_signal[0] == hardcoded_constant`, where the constant is computed off-chain once at deploy time. Poseidon is used because it is native BLS12-381 field arithmetic (cheapest in gnark); Cardano never executes it.
-_Avoid_: VK commitment, verifying key hash
+**InnerVKHash**: An in-circuit Poseidon hash (over BLS12-381 Fr) of the inner VK field elements, exposed as the first outer public signal. Identifies which inner proof system and version was used. The Aiken validator never recomputes this hash — it only checks `proof_signal[0] == hardcoded_constant`, where the constant is computed off-chain once at deploy time. Poseidon is used because it is native BLS12-381 field arithmetic (cheapest in gnark); Cardano never executes it.
+_Avoid_: VKHash, VK commitment, verifying key hash
 
-**Outer public inputs**: The public inputs to the outer BLS12-381 proof: `[VKHash, input_0, ..., input_{MAX-1}]`. Inner public inputs are exposed directly — not hashed into a commitment. No on-chain hash computation is required anywhere in the Aiken validator.
+**Outer public inputs**: The public inputs to the outer BLS12-381 proof: `[InnerVKHash, input_0, ..., input_{MAX-1}]`. Inner public inputs are exposed directly — not hashed into a commitment. No on-chain hash computation is required anywhere in the Aiken validator.
 _Avoid_: outer public signals, wrapper public outputs
 
 **Aiken validator**: The generated on-chain Cardano script that verifies an outer BLS12-381 proof. Parameterised by both the inner proof system (how many inputs are real, which are zero-checked) and the outer backend (proof format, embedded outer VK points).
@@ -71,7 +71,7 @@ _Avoid_: plugin metadata, system manifest
 >
 > "Who generates the Aiken validator?"
 >
-> "The RISC Zero plugin — `zkwrap-risc0`. It calls its codegen function with the inner system config (`n_real = 5`, `system_id = 'risc0-v3'`) and the embedded outer VK bytes. The output is a ready-to-compile Aiken module with `VKHash` baked in as a constant, `input_0..input_4` checked directly, and a journal authentication chain (~4 SHA-256 calls via the `tagged_struct` protocol) so the on-chain validator can verify the raw journal bytes against `inputs[2,3]`. No excess zero-checks for RISC Zero since all 5 slots are real."
+> "The RISC Zero plugin — `zkwrap-risc0`. It calls its codegen function with the inner system config (`n_real = 5`, `system_id = 'risc0-v3'`) and the embedded outer VK bytes. The output is a ready-to-compile Aiken module with `InnerVKHash` baked in as a constant, `input_0..input_4` checked directly, and a journal authentication chain (~4 SHA-256 calls via the `tagged_struct` protocol) so the on-chain validator can verify the raw journal bytes against `inputs[2,3]`. No excess zero-checks for RISC Zero since all 5 slots are real."
 >
 > "What if we later switch to Halo2 as the outer backend?"
 >
