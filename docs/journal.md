@@ -20,6 +20,21 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-05-26 - Phase 2 Step 1: MAX_INPUTS Benchmark and Poseidon Choice
+
+Work done:
+- Extended the RISC Zero recursive experiment into a parameterised production-shaped wrapper circuit (Poseidon2-MD `InnerVKHash`, outer public inputs `[InnerVKHash, input_0..input_{MAX-1}]`).
+- Benchmarked three `MAX_INPUTS` candidates against the RISC Zero Phase 1 fixture, end-to-end prove + verify.
+- Locked `MAX_INPUTS = 8` into ADR-0002 with the benchmark table and marginal-cost analysis.
+- Resolved the off-circuit Poseidon choice: Poseidon2 over BLS12-381 Fr with gnark-crypto default parameters, Merkle-Damgård chaining. Captured in new ADR-0005.
+
+Findings:
+- Inner Groth16 verification in `std/recursion/groth16` requires `WithCompleteArithmetic` once IC slots are padded with `(0,0)` and zero scalars — without it the prover hits "no modular inverse" during witness solving.
+- After refactor the wrapper circuit is now universal in `n_real`: it has no compile-time awareness of how many slots are real for a given inner system. The Aiken validator carries the excess-zero check, per ADR-0002.
+- Inner-witness scalars are derived in-circuit directly from the outer public inputs (single source of truth), with bit decomposition that admits a small `[BN254_Fr_mod, 2^254)` gap caught by the Aiken layer.
+
+Links: `docs/adr/0002-universal-wrapper-circuit.md`, `docs/adr/0005-poseidon2-bls12381-for-inner-vk-hash.md`, `experiments/risc0-gnark-verifier/recursive/main.go`.
+
 ## 2026-05-21 - risc0-ethereum Architecture Review
 
 Reviewed `../risc0-ethereum/` for spec cross-validation and on-chain design patterns.
