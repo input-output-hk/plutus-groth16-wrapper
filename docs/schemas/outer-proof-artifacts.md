@@ -55,6 +55,16 @@ purely a build artifact — not a secret.
     "<48 bytes, compressed BLS12-381 G1, hex>",
     "<48 bytes, compressed BLS12-381 G1, hex>",
     ...
+  ],
+  "commitment_keys": [
+    {
+      "g":             "<96 bytes, compressed BLS12-381 G2, hex>",
+      "g_sigma_neg":   "<96 bytes, compressed BLS12-381 G2, hex>"
+    }
+  ],
+  "public_and_commitment_committed": [
+    [<int>, <int>, ...],
+    ...
   ]
 }
 ```
@@ -67,7 +77,9 @@ purely a build artifact — not a secret.
 | `beta_g2`    | Outer Groth16 VK beta point on G2, compressed. |
 | `gamma_g2`   | Outer Groth16 VK gamma point on G2, compressed. |
 | `delta_g2`   | Outer Groth16 VK delta point on G2, compressed. |
-| `ic`         | Outer Groth16 VK IC array. Length `max_inputs + 2`: `IC[0]` is the constant term, `IC[1]` is the `InnerVKHash` coefficient, `IC[2..max_inputs+1]` are the per-input coefficients matching `inputs[0..max_inputs-1]` in `outer_proof.json`. |
+| `ic`         | Outer Groth16 VK IC array. Length `max_inputs + 2 + len(commitment_keys)`: `IC[0]` is the constant term, `IC[1]` is the `InnerVKHash` coefficient, `IC[2..max_inputs+1]` are the per-input coefficients matching `inputs[0..max_inputs-1]`, and the trailing `len(commitment_keys)` slot(s) hold the Pedersen-commitment-folded public input(s). |
+| `commitment_keys` | Pedersen commitment verifying keys (Bowe–Gabizon, [eprint 2022/1072](https://eprint.iacr.org/2022/1072)). The wrapper circuit uses emulated BN254 arithmetic inside BLS12-381; gnark's emulated rangechecks need a Fiat-Shamir challenge produced by hashing a Pedersen commitment, so the outer setup unavoidably emits one commitment slot. Each entry is `{g, g_sigma_neg}` — two compressed BLS12-381 G2 points. |
+| `public_and_commitment_committed` | Index lists used by the verifier to fold each commitment into the public-input vector. Per commitment `i`, `public_and_commitment_committed[i]` lists the wire indices included in the Fiat-Shamir hash that produces the implicit committed public input. Indices are 1-based into the full public/private wire vector (gnark convention). |
 
 **Hex convention:** lowercase hex, no `0x` prefix, no separators. Compressed BLS12-381 points
 use the zcash-flavored encoding (most-significant bit of byte 0 is the compression flag,
@@ -92,9 +104,11 @@ plugin's Aiken codegen / test-fixture machinery.
   "backend":    "gnark-groth16-bls12381",
   "max_inputs": 16,
   "proof": {
-    "ar":  "<48 bytes, compressed BLS12-381 G1, hex>",
-    "bs":  "<96 bytes, compressed BLS12-381 G2, hex>",
-    "krs": "<48 bytes, compressed BLS12-381 G1, hex>"
+    "ar":             "<48 bytes, compressed BLS12-381 G1, hex>",
+    "bs":             "<96 bytes, compressed BLS12-381 G2, hex>",
+    "krs":            "<48 bytes, compressed BLS12-381 G1, hex>",
+    "commitments":    ["<48 bytes, compressed BLS12-381 G1, hex>", ...],
+    "commitment_pok": "<48 bytes, compressed BLS12-381 G1, hex>"
   },
   "inner_vk_hash": "<32 bytes, BLS12-381 Fr, hex>",
   "inputs": [
@@ -107,13 +121,15 @@ plugin's Aiken codegen / test-fixture machinery.
 
 | Field | Description |
 |-------|-------------|
-| `backend`       | Must equal the `backend` field of the `outer_vk.json` used for proving. |
-| `max_inputs`    | Must equal the `max_inputs` field of the `outer_vk.json` used for proving. |
-| `proof.ar`      | Outer Groth16 proof A point, compressed G1. |
-| `proof.bs`      | Outer Groth16 proof B point, compressed G2. |
-| `proof.krs`     | Outer Groth16 proof C point, compressed G1. |
-| `inner_vk_hash` | The in-circuit Poseidon hash of the inner VK, exposed as the first outer public signal. 32-byte big-endian BLS12-381 Fr element. |
-| `inputs`        | The `MAX_INPUTS`-length public input vector exposed by the wrapper circuit. Slots `[0, n_real)` mirror the canonical inner proof's `public_inputs.bin`; slots `[n_real, MAX_INPUTS)` are zero. Each element is a 32-byte big-endian BLS12-381 Fr element. |
+| `backend`              | Must equal the `backend` field of the `outer_vk.json` used for proving. |
+| `max_inputs`           | Must equal the `max_inputs` field of the `outer_vk.json` used for proving. |
+| `proof.ar`             | Outer Groth16 proof A point, compressed G1. |
+| `proof.bs`             | Outer Groth16 proof B point, compressed G2. |
+| `proof.krs`            | Outer Groth16 proof C point, compressed G1. |
+| `proof.commitments`    | One compressed G1 point per entry in `outer_vk.json`'s `commitment_keys`. Pedersen commitments to the values listed in `public_and_commitment_committed`. |
+| `proof.commitment_pok` | Batched Pedersen proof-of-knowledge, compressed G1, that binds the prover to the commitments. Verifier checks `e(commitment_pok, [g]_2) == ∏ e(commitments[i], [g_sigma_neg]_2)` (one combined pairing per the batched form gnark uses). |
+| `inner_vk_hash`        | The in-circuit Poseidon hash of the inner VK, exposed as the first outer public signal. 32-byte big-endian BLS12-381 Fr element. |
+| `inputs`               | The `MAX_INPUTS`-length public input vector exposed by the wrapper circuit. Slots `[0, n_real)` mirror the canonical inner proof's `public_inputs.bin`; slots `[n_real, MAX_INPUTS)` are zero. Each element is a 32-byte big-endian BLS12-381 Fr element. |
 
 `inputs.length` MUST equal `max_inputs`. The public-input vector consumed by
 `groth16.Verify` is `[inner_vk_hash, inputs[0], …, inputs[max_inputs - 1]]`

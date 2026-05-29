@@ -99,6 +99,13 @@ binary layout.
 (both have zero Pedersen commitments in their BN254 Groth16 circuits). If a future inner
 system uses gnark Pedersen commitments, this spec must be extended.
 
+**Note (outer ≠ inner):** the outer wrapper proof DOES carry Pedersen commitments —
+gnark's emulated-arithmetic rangechecks require them. See
+[outer-proof-artifacts.md](./outer-proof-artifacts.md) for the outer schema's
+`commitment_keys` / `commitments` / `commitment_pok` fields. This canonical
+inner-proof spec describes the contract between the Rust plugin and the Go
+prover for native-BN254 systems where the commitment slot is absent.
+
 **Note on SP1 source format:** SP1's `seal.bin` is 324 bytes (includes `CommitmentPok` as a
 serialization artifact). The SP1 plugin reads only bytes `[0:256]` for `proof.bin`.
 
