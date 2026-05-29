@@ -1,4 +1,4 @@
-package artifacts
+package outer
 
 import (
 	"bytes"
@@ -34,17 +34,17 @@ func syntheticVK(t *testing.T, maxInputs int) *bls12381groth16.VerifyingKey {
 	return vk
 }
 
-func TestOuterVK_RoundTrip(t *testing.T) {
+func TestVK_RoundTrip(t *testing.T) {
 	in := syntheticVK(t, 8)
 
 	var buf bytes.Buffer
-	if err := WriteOuterVK(&buf, in, 8); err != nil {
-		t.Fatalf("WriteOuterVK: %v", err)
+	if err := WriteVK(&buf, in, 8); err != nil {
+		t.Fatalf("WriteVK: %v", err)
 	}
 
-	out, maxInputs, err := ReadOuterVK(&buf)
+	out, maxInputs, err := ReadVK(&buf)
 	if err != nil {
-		t.Fatalf("ReadOuterVK: %v", err)
+		t.Fatalf("ReadVK: %v", err)
 	}
 	if maxInputs != 8 {
 		t.Fatalf("maxInputs: got %d, want 8", maxInputs)
@@ -87,15 +87,15 @@ func TestOuterVK_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestOuterVK_SchemaShape asserts the encoded form matches docs/schemas/outer-proof-artifacts.md:
+// TestVK_SchemaShape asserts the encoded form matches docs/schemas/outer-proof-artifacts.md:
 // canonical key names, lowercase hex without 0x or separators, expected byte lengths
 // for compressed BLS12-381 points, and IC length = max_inputs + 2.
-func TestOuterVK_SchemaShape(t *testing.T) {
+func TestVK_SchemaShape(t *testing.T) {
 	vk := syntheticVK(t, 8)
 
 	var buf bytes.Buffer
-	if err := WriteOuterVK(&buf, vk, 8); err != nil {
-		t.Fatalf("WriteOuterVK: %v", err)
+	if err := WriteVK(&buf, vk, 8); err != nil {
+		t.Fatalf("WriteVK: %v", err)
 	}
 
 	var raw map[string]any

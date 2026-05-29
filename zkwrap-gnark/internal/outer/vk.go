@@ -1,6 +1,6 @@
 // Package artifacts implements the file artifacts produced and consumed by
 // the zkwrap-gnark binary, per docs/schemas/outer-proof-artifacts.md.
-package artifacts
+package outer
 
 import (
 	"encoding/json"
@@ -31,11 +31,11 @@ type commitmentKeyObj struct {
 	GSigmaNeg string `json:"g_sigma_neg"`
 }
 
-// WriteOuterVK serializes the outer VK as the canonical JSON form for the
+// WriteVK serializes the outer VK as the canonical JSON form for the
 // max_inputs value embedded into the trusted setup. The IC array length is not
 // enforced here (it is set by gnark setup); callers must pass the same
 // max_inputs that was used at setup time.
-func WriteOuterVK(w io.Writer, vk *bls12381groth16.VerifyingKey, maxInputs int) error {
+func WriteVK(w io.Writer, vk *bls12381groth16.VerifyingKey, maxInputs int) error {
 	ic := make([]string, len(vk.G1.K))
 	for i := range vk.G1.K {
 		ic[i] = g1Hex(vk.G1.K[i])
@@ -69,9 +69,9 @@ func WriteOuterVK(w io.Writer, vk *bls12381groth16.VerifyingKey, maxInputs int) 
 	})
 }
 
-// ReadOuterVK parses the canonical JSON form and reconstructs the gnark VK.
+// ReadVK parses the canonical JSON form and reconstructs the gnark VK.
 // Returns the VK and the max_inputs value embedded in the file.
-func ReadOuterVK(r io.Reader) (*bls12381groth16.VerifyingKey, int, error) {
+func ReadVK(r io.Reader) (*bls12381groth16.VerifyingKey, int, error) {
 	var f outerVKFile
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
 		return nil, 0, fmt.Errorf("decode outer_vk.json: %w", err)

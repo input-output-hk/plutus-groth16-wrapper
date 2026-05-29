@@ -1,4 +1,4 @@
-package artifacts
+package outer
 
 import (
 	"bytes"
@@ -34,18 +34,18 @@ func syntheticInputs(t *testing.T, n int) (innerVKHash fr.Element, inputs []fr.E
 	return
 }
 
-func TestOuterProof_RoundTrip(t *testing.T) {
+func TestProof_RoundTrip(t *testing.T) {
 	proof := syntheticProof(t)
 	innerVKHash, inputs := syntheticInputs(t, 8)
 
 	var buf bytes.Buffer
-	if err := WriteOuterProof(&buf, proof, innerVKHash, inputs, 8); err != nil {
-		t.Fatalf("WriteOuterProof: %v", err)
+	if err := WriteProof(&buf, proof, innerVKHash, inputs, 8); err != nil {
+		t.Fatalf("WriteProof: %v", err)
 	}
 
-	gotProof, gotHash, gotInputs, gotMax, err := ReadOuterProof(&buf)
+	gotProof, gotHash, gotInputs, gotMax, err := ReadProof(&buf)
 	if err != nil {
-		t.Fatalf("ReadOuterProof: %v", err)
+		t.Fatalf("ReadProof: %v", err)
 	}
 	if gotMax != 8 {
 		t.Fatalf("max_inputs: got %d, want 8", gotMax)
@@ -83,13 +83,13 @@ func TestOuterProof_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestOuterProof_SchemaShape(t *testing.T) {
+func TestProof_SchemaShape(t *testing.T) {
 	proof := syntheticProof(t)
 	innerVKHash, inputs := syntheticInputs(t, 8)
 
 	var buf bytes.Buffer
-	if err := WriteOuterProof(&buf, proof, innerVKHash, inputs, 8); err != nil {
-		t.Fatalf("WriteOuterProof: %v", err)
+	if err := WriteProof(&buf, proof, innerVKHash, inputs, 8); err != nil {
+		t.Fatalf("WriteProof: %v", err)
 	}
 
 	var raw map[string]any
@@ -161,15 +161,15 @@ func TestOuterProof_SchemaShape(t *testing.T) {
 	}
 }
 
-// ReadOuterProof must reject a proof whose inputs length disagrees with
+// ReadProof must reject a proof whose inputs length disagrees with
 // max_inputs — that is the docs/schemas/outer-proof-artifacts.md rule that
 // becomes load-bearing once the Aiken validator references the proof.
-func TestOuterProof_InputsLengthMustMatchMaxInputs(t *testing.T) {
+func TestProof_InputsLengthMustMatchMaxInputs(t *testing.T) {
 	proof := syntheticProof(t)
 	innerVKHash, inputs := syntheticInputs(t, 8)
 
 	var buf bytes.Buffer
-	if err := WriteOuterProof(&buf, proof, innerVKHash, inputs, 16); err == nil {
-		t.Fatalf("WriteOuterProof: expected error for inputs=8 vs max_inputs=16")
+	if err := WriteProof(&buf, proof, innerVKHash, inputs, 16); err == nil {
+		t.Fatalf("WriteProof: expected error for inputs=8 vs max_inputs=16")
 	}
 }

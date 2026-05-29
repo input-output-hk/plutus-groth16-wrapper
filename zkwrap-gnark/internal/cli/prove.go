@@ -1,4 +1,4 @@
-package subcommands
+package cli
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	stdgroth16 "github.com/consensys/gnark/std/recursion/groth16"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/artifacts"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/circuit"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/inner"
 )
@@ -24,7 +24,7 @@ import (
 // writes outer_proof.json to outPath.
 func prove(innerDir, setupDir, outPath string, stderr io.Writer) int {
 	fmt.Fprintln(stderr, "loading setup bundle...")
-	pk, _, ccs, maxInputs, err := artifacts.ReadSetupBundle(setupDir)
+	pk, _, ccs, maxInputs, err := outer.ReadSetupBundle(setupDir)
 	if err != nil {
 		fmt.Fprintf(stderr, "prove: %v\n", err)
 		return ExitOpError
@@ -112,7 +112,7 @@ func prove(innerDir, setupDir, outPath string, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "prove: create %s: %v\n", outPath, err)
 		return ExitOpError
 	}
-	if err := artifacts.WriteOuterProof(f, bls12proof, innerVKHash, paddedInputs, maxInputs); err != nil {
+	if err := outer.WriteProof(f, bls12proof, innerVKHash, paddedInputs, maxInputs); err != nil {
 		_ = f.Close()
 		fmt.Fprintf(stderr, "prove: write outer_proof.json: %v\n", err)
 		return ExitOpError

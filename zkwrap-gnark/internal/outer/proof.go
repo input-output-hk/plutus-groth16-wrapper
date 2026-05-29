@@ -1,4 +1,4 @@
-package artifacts
+package outer
 
 import (
 	"encoding/hex"
@@ -27,10 +27,10 @@ type proofObj struct {
 	CommitmentPok string   `json:"commitment_pok"`
 }
 
-// WriteOuterProof serializes the outer proof + public inputs as the canonical
+// WriteProof serializes the outer proof + public inputs as the canonical
 // JSON envelope. len(inputs) must equal maxInputs (the schema rule that lets
 // the Aiken validator hardcode the slot count).
-func WriteOuterProof(w io.Writer, p *bls12381groth16.Proof, innerVKHash fr.Element, inputs []fr.Element, maxInputs int) error {
+func WriteProof(w io.Writer, p *bls12381groth16.Proof, innerVKHash fr.Element, inputs []fr.Element, maxInputs int) error {
 	if len(inputs) != maxInputs {
 		return fmt.Errorf("inputs length %d != max_inputs %d", len(inputs), maxInputs)
 	}
@@ -64,9 +64,9 @@ func WriteOuterProof(w io.Writer, p *bls12381groth16.Proof, innerVKHash fr.Eleme
 	})
 }
 
-// ReadOuterProof parses the canonical JSON envelope. Returns proof, inner VK
+// ReadProof parses the canonical JSON envelope. Returns proof, inner VK
 // hash, padded inputs, and the max_inputs value embedded in the file.
-func ReadOuterProof(r io.Reader) (*bls12381groth16.Proof, fr.Element, []fr.Element, int, error) {
+func ReadProof(r io.Reader) (*bls12381groth16.Proof, fr.Element, []fr.Element, int, error) {
 	var f outerProofFile
 	if err := json.NewDecoder(r).Decode(&f); err != nil {
 		return nil, fr.Element{}, nil, 0, fmt.Errorf("decode outer_proof.json: %w", err)

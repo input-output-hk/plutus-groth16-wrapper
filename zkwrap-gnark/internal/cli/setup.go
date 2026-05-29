@@ -1,4 +1,4 @@
-package subcommands
+package cli
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/artifacts"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/circuit"
 )
 
@@ -46,7 +46,7 @@ func unsafeSetup(maxInputs int, outDir string, stderr io.Writer) int {
 	}
 
 	fmt.Fprintf(stderr, "writing bundle to %s ...\n", outDir)
-	if err := artifacts.WriteSetupBundle(outDir, pk, bls12vk, ccs, maxInputs); err != nil {
+	if err := outer.WriteSetupBundle(outDir, pk, bls12vk, ccs, maxInputs); err != nil {
 		fmt.Fprintf(stderr, "unsafe-setup: %v\n", err)
 		return ExitOpError
 	}

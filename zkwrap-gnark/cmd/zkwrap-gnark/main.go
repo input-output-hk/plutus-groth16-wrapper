@@ -5,9 +5,9 @@ package main
 import (
 	"os"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/subcommands"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/cli"
 )
 
 func main() {
-	os.Exit(subcommands.Run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
 }

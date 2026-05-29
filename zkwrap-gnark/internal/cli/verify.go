@@ -1,4 +1,4 @@
-package subcommands
+package cli
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/artifacts"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/circuit"
 )
 
@@ -20,12 +20,12 @@ import (
 // gnark's outer-Groth16 verification. No soundness checks beyond that — those
 // are the Aiken validator's job.
 func verify(proofPath, setupDir string, stderr io.Writer) int {
-	vkFile, err := os.Open(filepath.Join(setupDir, artifacts.FileOuterVK))
+	vkFile, err := os.Open(filepath.Join(setupDir, outer.FileVK))
 	if err != nil {
-		fmt.Fprintf(stderr, "verify: open %s: %v\n", artifacts.FileOuterVK, err)
+		fmt.Fprintf(stderr, "verify: open %s: %v\n", outer.FileVK, err)
 		return ExitOpError
 	}
-	vk, vkMaxInputs, err := artifacts.ReadOuterVK(vkFile)
+	vk, vkMaxInputs, err := outer.ReadVK(vkFile)
 	_ = vkFile.Close()
 	if err != nil {
 		fmt.Fprintf(stderr, "verify: %v\n", err)
@@ -37,7 +37,7 @@ func verify(proofPath, setupDir string, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "verify: open %s: %v\n", proofPath, err)
 		return ExitOpError
 	}
-	proof, innerVKHash, inputs, proofMaxInputs, err := artifacts.ReadOuterProof(pf)
+	proof, innerVKHash, inputs, proofMaxInputs, err := outer.ReadProof(pf)
 	_ = pf.Close()
 	if err != nil {
 		fmt.Fprintf(stderr, "verify: %v\n", err)

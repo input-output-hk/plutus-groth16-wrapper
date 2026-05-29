@@ -1,4 +1,4 @@
-package artifacts
+package outer
 
 import (
 	"encoding/hex"

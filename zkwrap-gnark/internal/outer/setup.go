@@ -1,4 +1,4 @@
-package artifacts
+package outer
 
 import (
 	"fmt"
@@ -13,10 +13,10 @@ import (
 
 // File names within a setup-dir bundle (docs/schemas/outer-proof-artifacts.md).
 const (
-	FileOuterPK    = "outer_pk.bin"
-	FileOuterVK    = "outer_vk.json"
+	FilePK    = "outer_pk.bin"
+	FileVK    = "outer_vk.json"
 	FileCircuit    = "circuit.r1cs"
-	FileOuterProof = "outer_proof.json"
+	FileProof = "outer_proof.json"
 )
 
 // WriteSetupBundle writes outer_pk.bin (gnark native binary), outer_vk.json
@@ -28,16 +28,16 @@ func WriteSetupBundle(dir string, pk groth16.ProvingKey, vk *bls12381groth16.Ver
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 
-	pkFile, err := os.Create(filepath.Join(dir, FileOuterPK))
+	pkFile, err := os.Create(filepath.Join(dir, FilePK))
 	if err != nil {
-		return fmt.Errorf("create %s: %w", FileOuterPK, err)
+		return fmt.Errorf("create %s: %w", FilePK, err)
 	}
 	if _, err := pk.WriteRawTo(pkFile); err != nil {
 		_ = pkFile.Close()
-		return fmt.Errorf("write %s: %w", FileOuterPK, err)
+		return fmt.Errorf("write %s: %w", FilePK, err)
 	}
 	if err := pkFile.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", FileOuterPK, err)
+		return fmt.Errorf("close %s: %w", FilePK, err)
 	}
 
 	r1csFile, err := os.Create(filepath.Join(dir, FileCircuit))
@@ -52,16 +52,16 @@ func WriteSetupBundle(dir string, pk groth16.ProvingKey, vk *bls12381groth16.Ver
 		return fmt.Errorf("close %s: %w", FileCircuit, err)
 	}
 
-	vkFile, err := os.Create(filepath.Join(dir, FileOuterVK))
+	vkFile, err := os.Create(filepath.Join(dir, FileVK))
 	if err != nil {
-		return fmt.Errorf("create %s: %w", FileOuterVK, err)
+		return fmt.Errorf("create %s: %w", FileVK, err)
 	}
-	if err := WriteOuterVK(vkFile, vk, maxInputs); err != nil {
+	if err := WriteVK(vkFile, vk, maxInputs); err != nil {
 		_ = vkFile.Close()
-		return fmt.Errorf("write %s: %w", FileOuterVK, err)
+		return fmt.Errorf("write %s: %w", FileVK, err)
 	}
 	if err := vkFile.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", FileOuterVK, err)
+		return fmt.Errorf("close %s: %w", FileVK, err)
 	}
 	return nil
 }
@@ -70,11 +70,11 @@ func WriteSetupBundle(dir string, pk groth16.ProvingKey, vk *bls12381groth16.Ver
 // proving key, the verifying key, the compiled R1CS, and the max_inputs value
 // recorded in outer_vk.json.
 func ReadSetupBundle(dir string) (groth16.ProvingKey, *bls12381groth16.VerifyingKey, constraint.ConstraintSystem, int, error) {
-	vkFile, err := os.Open(filepath.Join(dir, FileOuterVK))
+	vkFile, err := os.Open(filepath.Join(dir, FileVK))
 	if err != nil {
-		return nil, nil, nil, 0, fmt.Errorf("open %s: %w", FileOuterVK, err)
+		return nil, nil, nil, 0, fmt.Errorf("open %s: %w", FileVK, err)
 	}
-	vk, maxInputs, err := ReadOuterVK(vkFile)
+	vk, maxInputs, err := ReadVK(vkFile)
 	_ = vkFile.Close()
 	if err != nil {
 		return nil, nil, nil, 0, err
@@ -92,13 +92,13 @@ func ReadSetupBundle(dir string) (groth16.ProvingKey, *bls12381groth16.Verifying
 	_ = r1csFile.Close()
 
 	pk := groth16.NewProvingKey(ecc.BLS12_381)
-	pkFile, err := os.Open(filepath.Join(dir, FileOuterPK))
+	pkFile, err := os.Open(filepath.Join(dir, FilePK))
 	if err != nil {
-		return nil, nil, nil, 0, fmt.Errorf("open %s: %w", FileOuterPK, err)
+		return nil, nil, nil, 0, fmt.Errorf("open %s: %w", FilePK, err)
 	}
 	if _, err := pk.ReadFrom(pkFile); err != nil {
 		_ = pkFile.Close()
-		return nil, nil, nil, 0, fmt.Errorf("read %s: %w", FileOuterPK, err)
+		return nil, nil, nil, 0, fmt.Errorf("read %s: %w", FilePK, err)
 	}
 	_ = pkFile.Close()
 

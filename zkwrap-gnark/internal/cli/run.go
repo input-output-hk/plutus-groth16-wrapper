@@ -1,7 +1,7 @@
 // Package subcommands implements the zkwrap-gnark CLI:
 // three subcommands (unsafe-setup, prove, verify), named flags only,
 // stderr for human output, stdout silent, exit codes 0/1/2.
-package subcommands
+package cli
 
 import (
 	"fmt"
