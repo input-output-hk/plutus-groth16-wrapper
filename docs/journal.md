@@ -20,6 +20,20 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-05-29 - Phase 2 Complete: `zkwrap-gnark` Binary
+
+Work done:
+- Lifted the recursive Groth16/BLS12-381 wrapper from the experiment into the `zkwrap-gnark` binary. Three subcommands per ADR-0004: `unsafe-setup`, `prove`, `verify`.
+- End-to-end smoke test runs `unsafe-setup → prove → verify` against the RISC Zero Phase 1 fixture inside `go test`.
+- Extended `docs/schemas/outer-proof-artifacts.md` with the commitment fields the recursive verifier requires (`commitment_keys`, `public_and_commitment_committed`, `proof.commitments`, `proof.commitment_pok`).
+
+Phase 2 exit criteria met: end-to-end off-chain prove + verify works against a real Phase 1 inner proof.
+
+Links:
+- ADR-0004: `docs/adr/0004-gnark-prover-cli.md`
+- Outer artifact schema: `docs/schemas/outer-proof-artifacts.md`
+- Binary entrypoint: `zkwrap-gnark/cmd/zkwrap-gnark/main.go`
+
 ## 2026-05-26 - Phase 2 Step 1: MAX_INPUTS Benchmark and Poseidon Choice
 
 Work done:

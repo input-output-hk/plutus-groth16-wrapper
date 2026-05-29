@@ -2,7 +2,7 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 2 in progress. See [journal.md](journal.md) for latest status.
+> **Current phase:** Phase 2 complete. Phase 3 next. See [journal.md](journal.md) for latest status.
 > Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)
@@ -36,7 +36,7 @@ Before freezing the wrapper circuit and input format, explore real proof artifac
 
 **Exit criteria met:** both proofs verified in gnark standalone, witness schema locked.
 
-## Phase 2 - Wrapper circuit MVP (gnark Groth16/BLS12-381)
+## Phase 2 - Wrapper circuit MVP (gnark Groth16/BLS12-381) (DONE)
 
 Pick gnark Groth16/BLS12-381 as the first outer backend (fastest, best-documented; benchmarks already validate it). Defer PLONK and Halo2 to Phase 6.
 
