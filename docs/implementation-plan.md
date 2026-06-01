@@ -59,7 +59,7 @@ Pick gnark Groth16/BLS12-381 as the first outer backend (fastest, best-documente
 Aiken codegen lives in each Rust plugin crate, not in the Go prover binary. See ADR-0004.
 
 Each generated Aiken validator has two layers:
-- **Layer 1 (generic):** BLS12-381 Groth16 verification — outer VK points embedded as constants, pairing check, IC accumulation over the outer public inputs `[VKHash, input_0..input_{MAX-1}]`. Shared structure across all inner systems.
+- **Layer 1 (generic):** BLS12-381 Groth16 verification — outer VK points embedded as constants, pairing check, IC accumulation over the outer public inputs `[VKHash, input_0..input_{MAX-1}]`, plus the Pedersen commitment check (Bowe–Gabizon) the recursive wrapper requires: one extra pairing equation `e(commitment_pok, g) == e(commitment, g_sigma_neg)` and one SHA-256 hash-to-Fr that folds the commitment into the public inputs. See `docs/schemas/outer-proof-artifacts.md` for the exact fields.
 - **Layer 2 (system-specific):** `VKHash` constant check; excess-zero slot enforcement (e.g., SP1 checks `input_2..input_4 == 0`); journal authentication chain so the validator can verify raw application outputs from the outer public inputs without trusting off-chain code.
 
 Journal auth per system:
@@ -67,8 +67,8 @@ Journal auth per system:
 - **SP1:** 1 SHA-256 call: `SHA256(public_values_bytes) == inputs[1]`.
 
 **Steps:**
-1. Compatibility spike: generate one gnark Groth16/BLS12-381 outer proof (Phase 2) and hand-write an Aiken verifier for it locally. Confirm serialization, point signs, IC ordering, and field encodings against Cardano preview.
-2. Build the Layer 1 Aiken template (generic BLS12-381 verifier). Parameterised by: outer VK points, `MAX_INPUTS`.
+1. Compatibility spike in `experiments/aiken-verifier-spike/`: generate one gnark Groth16/BLS12-381 outer proof (Phase 2 artifacts) and hand-write an Aiken verifier for it. Starting point: copy + adapt the snarkjs-Aiken generic BLS12-381 Groth16 verifier (see `docs/research/snarkjs-cardano-aiken-verifiers.md`). Add the Pedersen-commitment check and the IC layout for `[VKHash, inputs..., commit_fr]`. Confirm serialization, point signs, IC ordering, field encodings, and execution units on preview.
+2. Build the Layer 1 Aiken template (generic BLS12-381 verifier). Parameterised by: outer VK points, `MAX_INPUTS`, commitment-keys.
 3. Build Layer 2 for RISC Zero in `zkwrap-risc0`: `VKHash` constant, `n_real = 5` (no excess zero-checks), journal auth chain from `tagged_struct`.
 4. Expose `gen_aiken_validator(outer_vk_bytes: &[u8], config: &InnerSystemConfig) -> String` in `zkwrap-risc0`. Embed `outer_vk.bin` from Phase 2 trusted setup via `include_bytes!`.
 5. Aiken testing. Verify with Aiken unit tests a real Phase 2 outer proof. Measure execution units.

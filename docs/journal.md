@@ -20,6 +20,27 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-01 — Phase 3 Step 1: Aiken Verifier Spike
+
+Work done:
+- Hand-wrote a single-file Aiken verifier (`experiments/aiken-verifier-spike/validators/spike.ak`) that verifies one real Phase 2 outer proof end-to-end against `MAX_INPUTS = 8` with the RISC Zero canonical inner fixture.
+- Pinned the Bowe–Gabizon Pedersen-commitment-on-Cardano algorithm in **ADR-0006**: PoK pairing equation, ExpandMsgXmd-SHA256 hash-to-Fr for the implicit folded public input, and the binding strategy that ties the redeemer-supplied 96-byte uncompressed commitment to its 48-byte compressed form (via `2·y > q` y-sign reconstruction).
+- Both layers from ADR-0004 in one file:
+  - **Layer 1** (generic): Groth16 + Bowe–Gabizon — IC accumulation over `[InnerVKHash, inputs…, commit_fr]` plus the bare-commitment fold-in, Pedersen PoK pairing, Groth16 pairing.
+  - **Layer 2** (RISC Zero): reconstructs `claim_digest` from `journal_bytes` via the `tagged_struct` chain (3 SHA-256s), assembles the 5 RISC Zero public inputs from version constants + split-digest, then delegates to Layer 1.
+- Nine inline tests cover hash-to-Fr, compressed-uncompressed binding, full verifier (positive + two tampered), claim-digest reconstruction, input vector, end-to-end via `verify_risc0` (positive + tampered journal).
+
+Findings:
+- **End-to-end verification fits comfortably in the Plutus V3 budget.** Layer 1 `verify` costs **4.28 B CPU** / **52.53 K mem** — ~43% of the 10 B mainnet CPU budget, ~0.4% of the 14 M mem budget.
+- **Layer 2 is essentially free on top of Layer 1.** Full `verify_risc0` is **4.28 B CPU** / **62.89 K mem** — same CPU within rounding because the Groth16 pairing dominates; +10 K mem and +8.6 M CPU for the journal-side work in isolation (`claim_digest_chain_matches` + `risc0_inputs_match_fixture`).
+
+Open questions:
+- **Codegen.** The spike is single-fixture; Phase 3 step 2 lifts it into a Rust string template inside `zkwrap-risc0` with parameterised constants (outer VK points, IC, commitment keys, MAX_INPUTS, `InnerVKHash`, RISC Zero version constants, plus per-guest pre/post state digests for Layer 2).
+
+Links:
+- ADR-0006 (Pedersen check spec): `docs/adr/0006-pedersen-commitment-check-on-cardano.md`
+- Spike: `experiments/aiken-verifier-spike/`
+
 ## 2026-05-29 - Phase 2 Complete: `zkwrap-gnark` Binary
 
 Work done:

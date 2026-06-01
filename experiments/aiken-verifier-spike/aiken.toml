@@ -1,0 +1,15 @@
+name = "iohk/groth16_wrapper_spike"
+version = "0.0.1"
+plutus = "v3"
+compiler = "1.1.19"
+description = "Aiken verifier for the gnark Groth16/BLS12-381 outer wrapper for risc0 proof. See docs/adr/0006."
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"
+
+[repository]
+user = "input-output-hk"
+project = "plutus-groth16-wrapper"
+platform = "github"
