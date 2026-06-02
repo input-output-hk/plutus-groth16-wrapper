@@ -36,3 +36,8 @@ target/
 
 # Go binary outputs (no extension on Linux/macOS)
 zkwrap-gnark/zkwrap-gnark
+
+.claude/settings.local.json
+docs/tmp
+zkwrap-gnark/testdata/groth16-outer-proof.json
+zkwrap-gnark/testdata/groth16-setup/
