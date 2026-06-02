@@ -20,6 +20,20 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-02 — Rust `InnerVKHash` cross-check
+
+Added a pure-Rust Poseidon2-MD/BLS12-381 + `InnerVKHash` reimplementation in
+`zkwrap-core` (`poseidon2.rs`, `vk_hash.rs`), matching gnark-crypto limb-for-limb;
+round-trips to `0c42ca6b…bbe8e6ca` on the real RISC Zero fixture. Vectors are dumped from
+the gnark reference (`go test ./internal/circuit -run TestDumpVKHashVectors -dump-vectors`)
+into `testdata/inner_vk_hash_vectors.json`.
+
+Decided it is **cross-check only, not the codegen path**: Aiken codegen reads `inner_vk_hash`
+straight from the gnark prover output (`outer_proof.json`), so gnark stays the single source
+of truth and we avoid a second production hash impl that must agree forever. The Rust twin
+exists to catch a *silent `gnark-crypto` Poseidon2 change*. This resolves ADR-0005's deferred
+"Rust vs Go helper" question (ADR-0005 updated).
+
 ## 2026-06-01 — Verifier CPU Optimization Attempts
 
 Tried two CPU optimizations on the spike verifier; kept one, dropped one.

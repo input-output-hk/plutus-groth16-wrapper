@@ -41,7 +41,23 @@ Each BN254 Fp element is decomposed into **4 little-endian 64-bit limbs**, match
 
 Total limb count: 48 (E) + 16 (GammaNeg) + 16 (DeltaNeg) + 8·(MAX_INPUTS + 1) (IC).
 
-This canonical preimage is what the Rust plugin's Aiken codegen must reproduce when computing the hardcoded `InnerVKHash` constant. The plugin will need a Rust Poseidon2/BLS12-381 implementation with matching parameters, **or** must call out to a thin Go helper that uses gnark-crypto. Either approach is acceptable; the choice is deferred to Phase 3.
+This canonical preimage defines the `InnerVKHash` constant baked into a generated Aiken validator.
+
+**Resolved (Phase 3): the codegen does not recompute the hash.** The gnark prover already
+emits `inner_vk_hash` in `outer_proof.json` (computed by `circuit.ComputeInnerVKHash`), and
+that file is the input fed into Aiken codegen. The Aiken generator therefore **reads
+`inner_vk_hash` from the prover output** rather than recomputing it — gnark is the single
+source of truth, which avoids a second production implementation of the same constant having
+to agree with the in-circuit hash forever.
+
+A pure-Rust Poseidon2/BLS12-381 implementation does exist at
+`zkwrap-rs/zkwrap-core/src/{poseidon2,vk_hash}.rs`, but **only as a cross-check**: it
+independently reproduces the constant so a regression test can detect a *silent change in
+`gnark-crypto`'s Poseidon2* (e.g. a parameter, round-constant, or MDS revision in a future
+version bump) that would otherwise quietly shift every baked `InnerVKHash`. It is verified
+limb-for-limb against the gnark reference via `testdata/inner_vk_hash_vectors.json` (dumped by
+`go test ./internal/circuit -run TestDumpVKHashVectors -dump-vectors`). It is not on the
+codegen path.
 
 ## What this locks in
 
@@ -53,4 +69,11 @@ Changes to the **inner VK layout** (e.g., a new field added to the canonical inn
 
 **No fresh security argument for the parameters.** We use gnark-crypto's defaults without independent review. If the upstream parameters are revised (e.g., to address a future cryptanalysis result), we re-evaluate.
 
-**Plugin-side hash implementation matching is not yet verified.** Phase 3 codegen must round-trip a hash computation against the gnark in-circuit version on a real Phase 1 fixture. Until that test exists, divergence between the plugin's computed constant and the in-circuit hash is a silent correctness bug.
+**Silent `gnark-crypto` Poseidon2 drift.** Because the baked `InnerVKHash` comes from gnark
+(see "What gets hashed"), a future `gnark-crypto` version that revised the Poseidon2
+parameters, round constants, or MDS would silently change every generated constant. This is
+mitigated — not eliminated — by the independent Rust cross-check in `zkwrap-core::vk_hash`,
+which round-trips against a pinned gnark-dumped fixture (`inner_vk_hash_vectors.json`) for the
+real RISC Zero Phase 1 VK. If gnark drifts, regenerating the fixture makes the Rust test fail,
+flagging the change before it reaches a deployed validator. The fixture must be regenerated
+deliberately, never blindly, on any `gnark-crypto` bump.
