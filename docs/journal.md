@@ -20,6 +20,16 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-01 — Verifier CPU Optimization Attempts
+
+Tried two CPU optimizations on the spike verifier; kept one, dropped one.
+
+**Kept — zero-input IC skip.** `compute_vk_x` now elides the `uncompress + scalar_mul + add` for any public-input slot whose scalar is 0 (sound: `0·P = O`). RISC Zero's `n_real = 5` always leaves 3 zero-padded slots under `MAX_INPUTS = 8`. Saved **390 M CPU** (4.28 B → 3.89 B), i.e. ~130 M per IC term. Note: data-dependent — a proof filling all 8 slots gets no benefit, so worst-case budget is still ~4.28 B.
+
+**Dropped — random-batched pairing.** Folding the Pedersen PoK and Groth16 checks into one `final_verify` via a Fiat-Shamir scalar saved only **170 M** (3.89 B → 3.72 B): one `final_verify` (~430 M) is mostly offset by the two added `g1_scalar_mul`s (~260 M) needed to scale `commitment` and `pok` by `r`. Hashing less in the challenge can't help — the hash is ~5 M (noise), and soundness requires `r` to bind all prover-chosen values (`A, B, C, commitment, pok`), so the transcript can't shrink. Not worth the harder soundness story (RO + Schwartz–Zippel) for ~4.5%. Plain `verify` stays the lead — it mirrors gnark `verify.go` 1:1.
+
+**Cost-model finding:** `bls12_381_g1_scalar_mul` has ~constant CPU (~130 M) regardless of scalar bit-length — truncating `r` to 128 bits changed nothing. The pairing floor is 6 miller loops; `e(α,β)` can't be precomputed (no GT constant/literal in Plutus V3).
+
 ## 2026-06-01 — Phase 3 Step 1: Aiken Verifier Spike
 
 Work done:

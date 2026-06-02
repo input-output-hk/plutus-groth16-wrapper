@@ -83,6 +83,10 @@ plugin's template.
 | `risc0_inputs_match_fixture` | Layer 2's reconstructed inputs vector equals the proof's public inputs. |
 | `verify_risc0_valid_proof` | End-to-end: journal bytes → reconstructed inputs → Layer 1 accepts. |
 | `verify_risc0_tampered_journal` *(must fail)* | Flipping the journal's first byte breaks the chain. |
+| `verify_batched_valid_proof` | Random-batched single-`final_verify` path accepts the same proof. |
+| `verify_batched_tampered_input` *(must fail)* | Bit-flipped `inputs[0]` rejected by the batched path. |
+| `verify_batched_risc0_valid_proof` | Layer 2 + random-batched Layer 1 end-to-end. |
+| `verify_batched_risc0_tampered_journal` *(must fail)* | Tampered journal rejected by the batched path. |
 
 ## Running
 
