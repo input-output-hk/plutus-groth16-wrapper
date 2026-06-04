@@ -10,7 +10,7 @@ Many external ZK systems, including RISC Zero and SP1, emit Groth16 proofs over 
 - `docs/initial-proposal.md` - original project proposal and motivation.
 - `docs/implementation-plan.md` - phased implementation roadmap. It is not set-in-stone and can be modified as more explorations are done.
 - `docs/research/` - feasibility studies and exploratory notes. These are evidence and background, not necessarily final specs.
-- `docs/decisions/` - durable architecture decision records. Use this for choices that future work should treat as settled unless explicitly revisited.
+- `docs/adr/` - architecture decision records. Each ADR captures the current decided position on a choice. ADRs are not set-in-stone; they can be revisited and superseded as new findings emerge.
 - `docs/schemas/` - precise data format specs: wrapper witness shape, public inputs, plugin outputs, redeemers, byte order, point encodings, hash preimages, and validation rules.
 - `docs/tasks/` - small implementation briefs or tickets with context, deliverables, and acceptance criteria.
 - `docs/journal.md` - chronological project log for day-to-day progress, observations, experiments, and links to related tasks or decisions.
@@ -35,7 +35,7 @@ Many external ZK systems, including RISC Zero and SP1, emit Groth16 proofs over 
 - When adding docs, distinguish between:
   - `docs/research/` for exploratory findings
   - `docs/schemas/` for precise data contracts
-  - `docs/decisions/` for durable choices
+  - `docs/adr/` for architecture decisions (revisitable as findings evolve)
   - `docs/journal.md` for chronological working notes
 
 ## Before Making Changes
@@ -45,27 +45,13 @@ Read, in order:
 1. `docs/initial-proposal.md` - **start here.** Goals, problem framing, and constraints.
 2. `docs/implementation-plan.md` - phased roadmap. Check the **Current phase** marker at the top to know what scope is in bounds.
 3. `docs/journal.md` - **most recent entry first**, for the freshest signal on what is in flight, what was just decided, and any open questions.
-4. Any relevant files under `docs/research/`, `docs/schemas/`, or `docs/decisions/`.
+4. Any relevant files under `docs/research/`, `docs/schemas/`, or `docs/adr/`.
 
 ## Do NOT Auto-Write These
 
 The following files are **only edited when the user explicitly asks for it**. Do not append to them as a side-effect of completing other work:
 
 - `docs/journal.md` - append a journal entry only when asked.
-- `docs/decisions/` - create or modify a decision record only when asked, even for architecture-affecting changes. If a change feels architecture-affecting, surface that to the user and propose adding an ADR; do not write one unprompted.
+- `docs/adr/` - create, modify, or supersede an ADR only when asked, even for architecture-affecting changes. If a change feels architecture-affecting - or new findings call an existing ADR into question - surface that to the user and propose adding or revisiting an ADR; do not write or rewrite one unprompted.
 
 The implementation plan's **Current phase** marker is the one exception: keep it accurate as phases begin and complete, without waiting to be asked.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues (`input-output-hk/plutus-groth16-wrapper`). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context repo: one `CONTEXT.md` at root + `docs/decisions/` for ADRs. See `docs/agents/domain.md`.
