@@ -37,7 +37,11 @@ target/
 # Go binary outputs (no extension on Linux/macOS)
 zkwrap-gnark/zkwrap-gnark
 
-.claude/settings.local.json
+# AI agent tooling — local only, not part of the project
+.claude/
+.agents/
+docs/agents/
+
 docs/tmp
 zkwrap-gnark/testdata/groth16-outer-proof.json
 zkwrap-gnark/testdata/groth16-setup/
