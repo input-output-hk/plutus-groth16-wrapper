@@ -1,0 +1,7 @@
+# Pinned Rust toolchain — single source of truth for local dev and CI.
+# Bumping the channel here updates everyone at once and keeps `clippy -D warnings`
+# reproducible (lints change between releases). See .github/workflows/ci.yml.
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

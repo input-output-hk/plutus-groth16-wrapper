@@ -1,0 +1,41 @@
+# cargo-deny configuration for the zkwrap-rs workspace.
+# Run locally with:  cargo deny --manifest-path zkwrap-rs/Cargo.toml check
+# Enforced in CI by .github/workflows/security.yml.
+
+[graph]
+all-features = true
+
+[advisories]
+# RustSec advisory DB. Unmaintained/vulnerable/yanked crates fail the check.
+version = 2
+yanked = "deny"
+# Add advisory IDs here only with a justification comment if a fix is unavailable.
+ignore = []
+
+[licenses]
+version = 2
+# Permissive licenses acceptable for a verifier we expect downstreams to embed.
+# Extend deliberately — a new copyleft entry is a decision worth reviewing.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "CC0-1.0",
+]
+confidence-threshold = 0.8
+
+[bans]
+# Duplicate versions are noise, not errors, in a young tree — surface, don't block.
+multiple-versions = "warn"
+wildcards = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

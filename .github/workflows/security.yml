@@ -1,0 +1,52 @@
+name: Security
+
+# Supply-chain gate. cargo-deny covers the Rust side (RustSec advisories,
+# licenses, banned/duplicate crates, source allow-list); govulncheck covers Go.
+# Runs when dependency manifests change, on push to main, and weekly to catch
+# advisories published after a dependency was last touched.
+on:
+  pull_request:
+    paths:
+      - 'zkwrap-rs/**/Cargo.toml'
+      - 'zkwrap-rs/Cargo.lock'
+      - 'zkwrap-rs/deny.toml'
+      - 'zkwrap-gnark/go.mod'
+      - 'zkwrap-gnark/go.sum'
+      - '.github/workflows/security.yml'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1' # Mondays 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-deny:
+    name: cargo-deny (advisories, licenses, bans, sources)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: zkwrap-rs/Cargo.toml
+          # `check` with no sub-arg runs all checks; --all-features matches deny.toml.
+          arguments: --all-features
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zkwrap-gnark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: zkwrap-gnark/go.mod
+          cache-dependency-path: zkwrap-gnark/go.sum
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        run: govulncheck ./...

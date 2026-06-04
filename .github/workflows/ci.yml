@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. force-pushes to a PR).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Path-filter once, then gate the language jobs on the result. Keeping this in a
+  # single workflow lets `ci-gate` be the one required status check: a job that is
+  # skipped (because its area didn't change) does not block merge, but a failure does.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      go: ${{ steps.filter.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'zkwrap-rs/**'
+              - '.github/workflows/ci.yml'
+            go:
+              - 'zkwrap-gnark/**'
+              - '.github/workflows/ci.yml'
+
+  rust:
+    name: Rust (fmt, clippy, test)
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zkwrap-rs
+    steps:
+      - uses: actions/checkout@v4
+      # Channel + components come from zkwrap-rs/rust-toolchain.toml; rustup
+      # installs them on first use. `rustup show` makes that explicit and early.
+      - name: Install pinned toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zkwrap-rs
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Build
+        run: cargo build --locked --workspace
+      - name: Test
+        run: cargo test --locked --workspace
+
+  go:
+    name: Go (gofmt, vet, test -short)
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zkwrap-gnark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: zkwrap-gnark/go.mod
+          cache-dependency-path: zkwrap-gnark/go.sum
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+      # -short skips the slow trusted-setup/prove/verify tests; the full suite
+      # runs nightly (.github/workflows/nightly.yml).
+      - name: Test (short)
+        run: go test -short ./...
+
+  ci-gate:
+    name: CI gate
+    needs: [changes, rust, go]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no required job failed
+        run: |
+          echo "rust: ${{ needs.rust.result }}"
+          echo "go:   ${{ needs.go.result }}"
+          for r in "${{ needs.rust.result }}" "${{ needs.go.result }}"; do
+            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
+              echo "::error::a required job failed or was cancelled"
+              exit 1
+            fi
+          done
+          echo "All required checks passed (skipped jobs are OK)."

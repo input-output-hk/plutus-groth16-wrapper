@@ -1,0 +1,45 @@
+name: Nightly
+
+# Heavy coverage that's too slow for the per-PR loop:
+#  - the full gnark suite (trusted setup -> prove -> verify, ~30s+)
+#  - Rust tests in release mode (catches optimization-dependent divergence,
+#    which matters for a soundness-critical verifier).
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go-full:
+    name: Go full suite (proving)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zkwrap-gnark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: zkwrap-gnark/go.mod
+          cache-dependency-path: zkwrap-gnark/go.sum
+      - name: Test (full — includes trusted setup, prove, verify)
+        run: go test ./...
+
+  rust-release:
+    name: Rust release tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zkwrap-rs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zkwrap-rs
+      - name: Test (release)
+        run: cargo test --release --locked --workspace
