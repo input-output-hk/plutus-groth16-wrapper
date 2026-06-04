@@ -1,5 +1,7 @@
 # Rust plugin library owns Aiken validator codegen
 
+**Status:** superseded by [ADR-0007 (two-axis Aiken codegen)](0007-two-axis-aiken-codegen.md). The core conclusion holds — codegen is Rust, not Go — but ADR-0007 splits ownership across two axes: the inner-system plugin owns only Layer 2, while Layer 1 belongs to the outer backend, with a Composer stitching them. The "plugin owns the whole template" framing below is outdated.
+
 Aiken validator generation is the responsibility of each Rust plugin crate, not the Go gnark prover binary.
 
 **Context.** A generated Aiken validator has two layers: a generic BLS12-381 proof verification layer (outer VK embedded as a constant, pairing check, IC accumulation) and a system-specific layer that depends intimately on the inner proof system. The system-specific layer includes: which of the `MAX_INPUTS` slots carry real data and which must be checked as zero (e.g., SP1 pads slots 2-4); the `VKHash` constant computed from the inner VK; and — critically — the journal authentication chain that derives the raw application outputs from the outer public inputs.

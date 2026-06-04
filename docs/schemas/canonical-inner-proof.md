@@ -121,12 +121,13 @@ circuit.
 
 ---
 
-## `meta.json` — Metadata
+## `meta.json` — Metadata (also the inner system config)
 
 ```json
 {
   "system_id": "<string>",
-  "n_real":    <uint>
+  "n_real":    <uint>,
+  "codegen":   { <system-specific, optional> }
 }
 ```
 
@@ -134,6 +135,25 @@ circuit.
 |-------|------|-------------|
 | `system_id` | string | Identifies the inner proof system. Canonical values: `"risc0-v3"`, `"sp1-v3"`. Used by the prover binary to select the Aiken validator template parameters. |
 | `n_real` | uint | Number of real public inputs in `public_inputs.bin`. Must equal `IC.len() - 1` from `vk.bin`. |
+| `codegen` | object | **Optional. Opaque to the prover binary.** System-specific per-guest constants consumed only by the Rust Composer when generating the Layer 2 fragment. The prover MUST ignore this section. |
+
+`meta.json` MUST contain `system_id` and `n_real`; it MAY contain a `codegen` section.
+The prover binary parses only the first two and ignores any additional fields (the Go
+`metaFile` struct declares only `system_id` and `n_real`, so unknown fields are dropped).
+
+For RISC Zero (`system_id = "risc0-v3"`), the `codegen` section carries the values the Layer 2
+journal-authentication chain bakes per guest program:
+
+```json
+"codegen": {
+  "image_id":          "<hex 32B>",  // pre_state_digest — binds to one guest program
+  "post_state_digest": "<hex 32B>",
+  "control_root":      "<hex>",      // → split into inputs[0], inputs[1]
+  "bn254_control_id":  "<hex 32B>"   // → inputs[4]
+}
+```
+
+There is no separate inner-system-config file; this section is it.
 
 ---
 

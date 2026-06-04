@@ -1,7 +1,7 @@
 # Task: SP1 Groth16/BN254 artifact exploration
 
 **Phase:** 1 (Source proof compatibility exploration)
-**Status:** In progress
+**Status:** Done
 **Blocks:** wrapper canonical witness schema, SP1 plugin (Phase 5)
 
 ## Context

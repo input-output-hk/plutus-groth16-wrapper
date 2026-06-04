@@ -1,7 +1,7 @@
 # Task: RISC Zero Groth16/BN254 artifact exploration
 
 **Phase:** 1 (Source proof compatibility exploration)
-**Status:** Not started
+**Status:** Done
 **Blocks:** wrapper canonical witness schema, RISC Zero plugin (Phase 4)
 
 ## Context
