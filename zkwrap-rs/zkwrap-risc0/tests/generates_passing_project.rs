@@ -10,8 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use zkwrap_core::groth16::Groth16Backend;
-use zkwrap_core::{compose, ComposeRequest, OuterProof, OuterVk, TestBlock};
+use zkwrap_core::{compose, ComposeRequest, Groth16Backend, OuterProof, OuterVk, TestBlock};
 use zkwrap_risc0::Risc0Layer2;
 
 // --- spike fixture values not present in outer_proof.json (RISC Zero guest

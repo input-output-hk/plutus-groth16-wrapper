@@ -3,7 +3,7 @@
 //! A generated Aiken validator is composed along two independent, pluggable
 //! axes: **Layer 1** the proving engine (keyed by outer-backend id) and
 //! **Layer 2** the inner-system scaffolding (keyed by `system_id`). The
-//! [`Composer`](crate::composer) stitches one of each into a project.
+//! [`Composer`](crate::codegen::composer) stitches one of each into a project.
 //!
 //! Both traits return **structured data**, never Aiken source blobs (except
 //! the vendored Layer 2 `.ak`, which is constant-free and generic). The
@@ -31,7 +31,9 @@
 //! and pads to `MAX_INPUTS` with **literal zeros** — which double as ADR-0002's
 //! mandatory excess-zero enforcement.
 
-use crate::outer::OuterVk;
+pub mod composer;
+
+use crate::OuterVk;
 use serde_json::Value;
 
 #[derive(Debug)]

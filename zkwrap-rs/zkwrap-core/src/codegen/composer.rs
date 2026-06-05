@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use crate::codegen::{CodegenError, Layer2Codegen, OuterBackend};
-use crate::outer::OuterVk;
+use crate::OuterVk;
 
 /// A single generated `test` block, supplied by the caller as data so the
 /// Composer needs no per-backend/per-system test knowledge. Rendered into

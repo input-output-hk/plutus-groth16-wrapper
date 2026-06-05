@@ -2,15 +2,19 @@
 //!
 //! Renders the generic `groth16.ak` verifier with the setup-bound crypto
 //! (outer VK points, IC array, Pedersen commitment keys) baked into `verify`
-//! from an [`OuterVk`]. This is the Layer 1 half of ADR-0007; it lives in
-//! `zkwrap-core` for now and moves to a dedicated `zkwrap-groth16` crate when a
-//! second backend (PLONK) lands.
+//! from an [`OuterVk`]. 
+
+/// The outer-proof artifact schema (`outer_vk.json` / `outer_proof.json`).
+pub mod artifacts;
+/// Off-chain `InnerVKHash` cross-check (gnark-crypto drift detector; not on the
+/// codegen path).
+pub mod vk_hash;
 
 use crate::codegen::{CodegenError, OuterBackend};
-use crate::outer::OuterVk;
+use crate::OuterVk;
 use minijinja::{context, Environment};
 
-const LAYER1_TEMPLATE: &str = include_str!("groth16.ak.jinja");
+const LAYER1_TEMPLATE: &str = include_str!("gnark_groth16/layer1.ak.jinja");
 const BACKEND_ID: &str = "gnark-groth16-bls12381";
 const MODULE_NAME: &str = "groth16";
 

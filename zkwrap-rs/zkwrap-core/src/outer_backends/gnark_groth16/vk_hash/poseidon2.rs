@@ -8,7 +8,7 @@
 //! solely to detect a *silent change in `gnark-crypto`'s Poseidon2* — a future
 //! parameter, round-constant, or MDS revision that would otherwise quietly
 //! shift every baked constant. Correctness is pinned by KATs dumped from the
-//! gnark reference in `testdata/inner_vk_hash_vectors.json`.
+//! gnark reference in `inner_vk_hash_vectors.json` (co-located in this module).
 
 use ark_bls12_381::Fr;
 use ark_ff::{AdditiveGroup, BigInteger, PrimeField};
@@ -174,7 +174,7 @@ impl MerkleDamgardHasher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_vectors::load_vectors;
+    use super::super::test_vectors::load_vectors;
 
     fn fr_from_hex(h: &str) -> Fr {
         let bytes = hex::decode(h).unwrap();
