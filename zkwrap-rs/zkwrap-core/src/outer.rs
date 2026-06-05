@@ -79,7 +79,14 @@ pub struct OuterProofPoints {
     pub ar:             String,
     pub bs:             String,
     pub krs:            String,
-    pub commitments:    Vec<String>,
+    /// Uncompressed (96-byte, gnark RawBytes `x_be ‖ y_be`) Pedersen
+    /// commitments — the exact preimage gnark hashes for `commit_fr` and the
+    /// redeemer-side artifact the Aiken verifier consumes. (The compressed
+    /// `commitments` form gnark also emits is not parsed here: codegen only
+    /// needs the uncompressed bytes; the verifier derives the compressed form
+    /// on-chain.)
+    #[serde(default)]
+    pub commitments_uncompressed: Vec<String>,
     pub commitment_pok: String,
 }
 
@@ -108,13 +115,17 @@ impl OuterProof {
         Ok(p)
     }
 
-    /// The single Pedersen commitment (validated to exist).
-    pub fn commitment(&self) -> Result<&str, OuterParseError> {
+    /// The single uncompressed (96-byte) Pedersen commitment — the redeemer
+    /// artifact the verifier hashes and decompresses. Carried in the proof
+    /// because it is expensive to derive it in Plutus on-chain.
+    pub fn commitment_uncompressed(&self) -> Result<&str, OuterParseError> {
         self.proof
-            .commitments
+            .commitments_uncompressed
             .first()
             .map(String::as_str)
-            .ok_or_else(|| OuterParseError::Shape("proof has no commitments".into()))
+            .ok_or_else(|| {
+                OuterParseError::Shape("proof has no commitments_uncompressed".into())
+            })
     }
 }
 
@@ -184,10 +195,10 @@ mod tests {
             p.inner_vk_hash,
             "0c42ca6b6e6c574b5b21c90360bed01945966b844fb47b5430d0d801bbe8e6ca"
         );
-        assert_eq!(
-            p.commitment().unwrap(),
-            "a82fa3134bc25666c7a42336409323186f0e920d92b7b56f35dfd89555624e4a23fe016711a3aa49ad8fdf6354382bb5"
-        );
+        // Uncompressed (96-byte) form: same x with the raw-finite marker, plus y.
+        let cu = p.commitment_uncompressed().unwrap();
+        assert_eq!(cu.len(), 192);
+        assert!(cu.starts_with("082fa3134bc25666"));
         // Last three input slots are the MAX_INPUTS padding zeros.
         for slot in &p.inputs[5..8] {
             assert_eq!(

@@ -16,14 +16,7 @@ const MODULE_NAME: &str = "groth16";
 
 /// Proof-side parameters forwarded into `groth16.verify` ahead of
 /// `inner_vk_hash` and the inputs list (the Layer 1 ABI; see [`crate::codegen`]).
-const PROOF_PARAMS: &[&str] = &[
-    "pi_a",
-    "pi_b",
-    "pi_c",
-    "commitment",
-    "commitment_uncompressed",
-    "commitment_pok",
-];
+const PROOF_PARAMS: &[&str] = &["pi_a", "pi_b", "pi_c", "commitment_uncompressed", "commitment_pok"];
 
 /// The gnark Groth16/BLS12-381 outer backend.
 pub struct Groth16Backend;

@@ -14,14 +14,16 @@ use zkwrap_core::groth16::Groth16Backend;
 use zkwrap_core::{compose, ComposeRequest, OuterProof, OuterVk, TestBlock};
 use zkwrap_risc0::Risc0Layer2;
 
-// --- spike fixture values not present in outer_proof.json (redeemer-side
-//     artifact + RISC Zero guest output + off-chain cross-checks) ---
-
-/// `proof.Commitments[0].Marshal()` (gnark RawBytes, 96-byte uncompressed G1).
-const COMMITMENT_UNCOMPRESSED: &str = "082fa3134bc25666c7a42336409323186f0e920d92b7b56f35dfd89555624e4a23fe016711a3aa49ad8fdf6354382bb5116ccd1de858164be8c500e11cc7ae929575911438a947eca4ab0392a9ba1f0fbeb8d2d56d4c76ce758f615511d53f1a";
+// --- spike fixture values not present in outer_proof.json (RISC Zero guest
+//     output + off-chain cross-checks).
 /// `ExpandMsgXmd_SHA256(commitment_uncompressed) mod r`, from gnark.
 const EXPECTED_COMMIT_FR: &str =
     "6385ca90542285a400c194342aaab4263f8b62b55282a58b9e6b482218462dc8";
+/// Canonical compressed (48-byte) form of the commitment — the value the
+/// on-chain `compress_from_uncompressed` helper must reproduce. (Not parsed
+/// from the proof: codegen only needs the uncompressed bytes.)
+const EXPECTED_COMMITMENT: &str =
+    "a82fa3134bc25666c7a42336409323186f0e920d92b7b56f35dfd89555624e4a23fe016711a3aa49ad8fdf6354382bb5";
 /// Raw guest output for multiply(17, 23): u64 LE = 391.
 const JOURNAL_BYTES: &str = "8701000000000000";
 /// Same journal with the low byte flipped (391 → 390).
@@ -74,8 +76,8 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
     let pi_a = ba(&proof.proof.ar);
     let pi_b = ba(&proof.proof.bs);
     let pi_c = ba(&proof.proof.krs);
-    let commitment = ba(proof.commitment().unwrap());
-    let cu = ba(COMMITMENT_UNCOMPRESSED);
+    let commitment = ba(EXPECTED_COMMITMENT);
+    let cu = ba(proof.commitment_uncompressed().unwrap());
     let pok = ba(&proof.proof.commitment_pok);
     let vkhash = int(&proof.inner_vk_hash);
     let inputs = int_list(&proof.inputs);
@@ -89,13 +91,13 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
     // Layer 1, literal-input form: groth16.verify(proof…, vkhash, inputs).
     let l1_verify = |vkh: &str, ins: &str| {
         format!(
-            "groth16.verify(\n  {pi_a},\n  {pi_b},\n  {pi_c},\n  {commitment},\n  {cu},\n  {pok},\n  {vkh},\n  {ins},\n)"
+            "groth16.verify(\n  {pi_a},\n  {pi_b},\n  {pi_c},\n  {cu},\n  {pok},\n  {vkh},\n  {ins},\n)"
         )
     };
     // Composed entry, journal form: verify(proof…, journal_bytes).
     let composed = |journal: &str| {
         format!(
-            "verify(\n  {pi_a},\n  {pi_b},\n  {pi_c},\n  {commitment},\n  {cu},\n  {pok},\n  {},\n)",
+            "verify(\n  {pi_a},\n  {pi_b},\n  {pi_c},\n  {cu},\n  {pok},\n  {},\n)",
             ba(journal)
         )
     };

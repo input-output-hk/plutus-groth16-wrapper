@@ -164,21 +164,23 @@ pub fn verify(
   pi_a: ByteArray,
   pi_b: ByteArray,
   pi_c: ByteArray,
-  commitment: ByteArray,
   commitment_uncompressed: ByteArray,
   commitment_pok: ByteArray,
   inner_vk_hash: Int,
   inputs: List<Int>,
 ) -> Bool {
-  // (1) Bind uncompressed bytes to the compressed point.
-  expect compress_from_uncompressed(commitment_uncompressed) == commitment
-
-  // (2) Derive commit_fr.
+  // (1) Derive commit_fr from the exact bytes gnark hashed.
   let commit_fr = hash_to_fr(commitment_uncompressed)
+
+  // (2) Recover the commitment point from the uncompressed bytes — we must first compress,
+  //     then use builtin uncompress.
+  let commitment_g1 =
+    builtin.bls12_381_g1_uncompress(
+      compress_from_uncompressed(commitment_uncompressed),
+    )
 
   // (3) Pedersen PoK pairing check:
   //     e(commitment, g_sigma_neg) == e(-commitment_pok, g)
-  let commitment_g1 = builtin.bls12_381_g1_uncompress(commitment)
   let pok_g1 = builtin.bls12_381_g1_uncompress(commitment_pok)
   let g_g2 = builtin.bls12_381_g2_uncompress(ck_g)
   let g_sigma_neg_g2 = builtin.bls12_381_g2_uncompress(ck_g_sigma_neg)

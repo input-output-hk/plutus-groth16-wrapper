@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -139,6 +141,16 @@ func TestProof_SchemaShape(t *testing.T) {
 	for i, c := range commitments {
 		assertCompressed("proof.commitments["+string(rune('0'+i))+"]", c.(string), 48)
 	}
+	commitmentsUncompressed, ok := proofObj["commitments_uncompressed"].([]any)
+	if !ok {
+		t.Fatalf("proof.commitments_uncompressed: not an array")
+	}
+	if len(commitmentsUncompressed) != len(commitments) {
+		t.Errorf("proof.commitments_uncompressed length: got %d, want %d", len(commitmentsUncompressed), len(commitments))
+	}
+	for i, c := range commitmentsUncompressed {
+		assertCompressed("proof.commitments_uncompressed["+string(rune('0'+i))+"]", c.(string), 96)
+	}
 
 	assertFr := func(field, val string) {
 		t.Helper()
@@ -158,6 +170,20 @@ func TestProof_SchemaShape(t *testing.T) {
 	}
 	for i, e := range ins {
 		assertFr("inputs["+string(rune('0'+i))+"]", e.(string))
+	}
+}
+
+// The checked-in fixture must carry a commitments_uncompressed that matches its
+// compressed commitment — ReadProof validates this, so a stale or wrong value
+// fails here (and would mislead the Aiken redeemer artifact otherwise).
+func TestProof_FixtureUncompressedCommitmentIsValid(t *testing.T) {
+	f, err := os.Open(filepath.Join("..", "..", "testdata", "groth16-outer-proof.json"))
+	if err != nil {
+		t.Fatalf("open fixture: %v", err)
+	}
+	defer f.Close()
+	if _, _, _, _, err := ReadProof(f); err != nil {
+		t.Fatalf("ReadProof(fixture): %v", err)
 	}
 }
 
