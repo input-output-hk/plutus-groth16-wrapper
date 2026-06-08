@@ -3,9 +3,7 @@ pub use codegen::{CodegenError, Layer2Codegen, Layer2Wiring, OuterBackend, RawPa
 pub use codegen::composer::{compose, ComposeRequest, GeneratedProject, TestBlock};
 
 pub mod outer_backends;
-pub use outer_backends::gnark_groth16::artifacts::{
-    CommitmentKey, OuterParseError, OuterProof, OuterProofPoints, OuterVk,
-};
+pub use outer_backends::gnark_groth16::artifacts::{OuterParseError, OuterProof};
 pub use outer_backends::gnark_groth16::Groth16Backend;
 
 pub mod inner;

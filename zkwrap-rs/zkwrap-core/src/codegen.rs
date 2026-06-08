@@ -33,13 +33,15 @@
 
 pub mod composer;
 
-use crate::OuterVk;
 use serde_json::Value;
 
 #[derive(Debug)]
 pub enum CodegenError {
     /// A required field was missing or malformed in the meta.json `codegen` section.
     Meta(String),
+    /// The backend's VK artifact (`outer_vk.json`) was malformed or did not
+    /// match the selected backend.
+    Artifact(String),
     /// Template rendering failed.
     Render(String),
 }
@@ -48,6 +50,7 @@ impl std::fmt::Display for CodegenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CodegenError::Meta(s) => write!(f, "meta.json codegen: {s}"),
+            CodegenError::Artifact(s) => write!(f, "vk artifact: {s}"),
             CodegenError::Render(s) => write!(f, "render: {s}"),
         }
     }
@@ -105,6 +108,19 @@ pub trait Layer2Codegen {
     fn layer2_wiring(&self, codegen: &Value) -> Result<Layer2Wiring, CodegenError>;
 }
 
+/// What a Layer 1 backend contributes to the project, symmetric to
+/// [`Layer2Wiring`]: the rendered verifier source plus the one VK fact the
+/// Composer's ABI needs. The backend owns its artifact type; the engine sees
+/// only this engine-owned struct.
+#[derive(Debug, Clone)]
+pub struct Layer1 {
+    /// Rendered `lib/zkwrap/<module_name>.ak` with the outer VK baked into
+    /// `verify`.
+    pub source:     String,
+    /// `MAX_INPUTS` baked at circuit setup — the public-input vector length 
+    pub max_inputs: usize,
+}
+
 /// Deploy-time plugin trait: the proving engine (Layer 1), keyed by
 /// outer-backend id. Symmetric to [`Layer2Codegen`].
 pub trait OuterBackend {
@@ -117,8 +133,9 @@ pub trait OuterBackend {
     /// that the generated entry forwards before `inner_vk_hash` and the inputs
     /// list. See the [module-level Layer 1 ABI](self).
     fn proof_params(&self) -> &'static [&'static str];
-    /// Render Layer 1 with the setup-bound crypto (outer VK points + Pedersen
-    /// commitment keys) baked directly into `verify`. The result is vendored
-    /// into `lib/zkwrap/<module_name>.ak`.
-    fn render_layer1(&self, vk: &OuterVk) -> Result<String, CodegenError>;
+    /// Parse and validate the backend's own VK artifact (`outer_vk.json` text)
+    /// and render Layer 1 with the setup-bound crypto (outer VK points)
+    /// baked directly into `verify`. The backend owns artifact parsing
+    /// and the `backend`-id check; the engine stays free of any concrete VK type.
+    fn render_layer1(&self, vk_json: &str) -> Result<Layer1, CodegenError>;
 }

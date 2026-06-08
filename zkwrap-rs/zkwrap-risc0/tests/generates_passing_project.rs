@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use zkwrap_core::{compose, ComposeRequest, Groth16Backend, OuterProof, OuterVk, TestBlock};
+use zkwrap_core::{compose, ComposeRequest, Groth16Backend, OuterProof, TestBlock};
 use zkwrap_risc0::Risc0Layer2;
 
 // --- spike fixture values not present in outer_proof.json (RISC Zero guest
@@ -138,7 +138,7 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
 
 #[test]
 fn composer_emits_aiken_check_passing_project() {
-    let vk = OuterVk::from_json(&read("zkwrap-gnark/testdata/groth16-setup/outer_vk.json")).unwrap();
+    let vk_json = read("zkwrap-gnark/testdata/groth16-setup/outer_vk.json");
     let proof =
         OuterProof::from_json(&read("zkwrap-gnark/testdata/groth16-outer-proof.json")).unwrap();
 
@@ -155,7 +155,7 @@ fn composer_emits_aiken_check_passing_project() {
         project_name: "zkwrap/risc0_groth16",
         backend: &Groth16Backend,
         layer2: &Risc0Layer2,
-        vk: &vk,
+        vk_json: &vk_json,
         inner_vk_hash: &proof.inner_vk_hash,
         codegen_meta: &codegen,
         tests: &tests,

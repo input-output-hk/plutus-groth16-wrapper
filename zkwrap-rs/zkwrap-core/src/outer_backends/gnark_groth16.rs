@@ -10,8 +10,8 @@ pub mod artifacts;
 /// codegen path).
 pub mod vk_hash;
 
-use crate::codegen::{CodegenError, OuterBackend};
-use crate::OuterVk;
+use self::artifacts::OuterVk;
+use crate::codegen::{CodegenError, Layer1, OuterBackend};
 use minijinja::{context, Environment};
 
 const LAYER1_TEMPLATE: &str = include_str!("gnark_groth16/layer1.ak.jinja");
@@ -38,9 +38,10 @@ impl OuterBackend for Groth16Backend {
         PROOF_PARAMS
     }
 
-    fn render_layer1(&self, vk: &OuterVk) -> Result<String, CodegenError> {
+    fn render_layer1(&self, vk_json: &str) -> Result<Layer1, CodegenError> {
+        let vk = OuterVk::from_json(vk_json).map_err(|e| CodegenError::Artifact(e.to_string()))?;
         if vk.backend != BACKEND_ID {
-            return Err(CodegenError::Render(format!(
+            return Err(CodegenError::Artifact(format!(
                 "backend mismatch: outer_vk.json says {:?}, this backend is {BACKEND_ID:?}",
                 vk.backend
             )));
@@ -56,17 +57,19 @@ impl OuterBackend for Groth16Backend {
         let tmpl = env
             .get_template(MODULE_NAME)
             .map_err(|e| CodegenError::Render(e.to_string()))?;
-        tmpl.render(context! {
-            max_inputs => vk.max_inputs,
-            alpha_g1 => vk.alpha_g1,
-            beta_g2 => vk.beta_g2,
-            gamma_g2 => vk.gamma_g2,
-            delta_g2 => vk.delta_g2,
-            ic => vk.ic,
-            ck_g => ck.g,
-            ck_g_sigma_neg => ck.g_sigma_neg,
-        })
-        .map_err(|e| CodegenError::Render(e.to_string()))
+        let source = tmpl
+            .render(context! {
+                max_inputs => vk.max_inputs,
+                alpha_g1 => vk.alpha_g1,
+                beta_g2 => vk.beta_g2,
+                gamma_g2 => vk.gamma_g2,
+                delta_g2 => vk.delta_g2,
+                ic => vk.ic,
+                ck_g => ck.g,
+                ck_g_sigma_neg => ck.g_sigma_neg,
+            })
+            .map_err(|e| CodegenError::Render(e.to_string()))?;
+        Ok(Layer1 { source, max_inputs: vk.max_inputs })
     }
 }
 
@@ -74,16 +77,16 @@ impl OuterBackend for Groth16Backend {
 mod tests {
     use super::*;
 
-    fn fixture_vk() -> OuterVk {
+    fn fixture_vk_json() -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
             .join("zkwrap-gnark/testdata/groth16-setup/outer_vk.json");
-        OuterVk::from_json(&std::fs::read_to_string(path).unwrap()).unwrap()
+        std::fs::read_to_string(path).unwrap()
     }
 
     #[test]
     fn renders_baked_vk_constants() {
-        let out = Groth16Backend.render_layer1(&fixture_vk()).unwrap();
+        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
         // Outer VK points baked in.
         assert!(out.contains(
             "const vk_alpha_g1: ByteArray = #\"b0a27b5ce1e9e0fb9b1e0930686f8f3b8198c17927f23ea4925baf618661e699ace14793be2cc7b8df30b3478351bec6\""
@@ -94,7 +97,7 @@ mod tests {
 
     #[test]
     fn renders_full_ic_array_and_unroll() {
-        let out = Groth16Backend.render_layer1(&fixture_vk()).unwrap();
+        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
         // 11 IC constants for MAX_INPUTS = 8: ic_0 .. ic_10.
         assert!(out.contains("const ic_0: ByteArray"));
         assert!(out.contains("const ic_10: ByteArray"));
@@ -107,7 +110,7 @@ mod tests {
 
     #[test]
     fn no_unrendered_template_holes() {
-        let out = Groth16Backend.render_layer1(&fixture_vk()).unwrap();
+        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
         assert!(!out.contains("{{"), "unrendered minijinja hole remains");
         assert!(!out.contains("{%"), "unrendered minijinja tag remains");
     }

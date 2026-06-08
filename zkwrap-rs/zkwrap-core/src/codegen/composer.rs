@@ -13,7 +13,6 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use crate::codegen::{CodegenError, Layer2Codegen, OuterBackend};
-use crate::OuterVk;
 
 /// A single generated `test` block, supplied by the caller as data so the
 /// Composer needs no per-backend/per-system test knowledge. Rendered into
@@ -43,7 +42,9 @@ pub struct ComposeRequest<'a> {
     pub project_name:  &'a str,
     pub backend:       &'a dyn OuterBackend,
     pub layer2:        &'a dyn Layer2Codegen,
-    pub vk:            &'a OuterVk,
+    /// Raw `outer_vk.json` text. Parsed and validated by `backend`; the engine
+    /// never names the concrete VK type.
+    pub vk_json:       &'a str,
     /// `inner_vk_hash` from `outer_proof.json` — raw lowercase hex, no `0x`.
     pub inner_vk_hash: &'a str,
     /// The canonical inner proof's `meta.json` `codegen` section.
@@ -82,23 +83,18 @@ impl GeneratedProject {
 
 /// Assemble the project.
 pub fn compose(req: &ComposeRequest) -> Result<GeneratedProject, CodegenError> {
-    // --- consistency checks the Composer can make from the two traits + VK ---
-    if req.vk.backend != req.backend.backend_id() {
-        return Err(CodegenError::Render(format!(
-            "outer_vk backend {:?} != backend {:?}",
-            req.vk.backend,
-            req.backend.backend_id()
-        )));
-    }
+    // The backend parses + validates its own VK artifact (including the
+    // backend-id check) and reports MAX_INPUTS
+    let layer1 = req.backend.render_layer1(req.vk_json)?;
+    let max_inputs = layer1.max_inputs;
+
     let n_real = req.layer2.n_real();
-    let max_inputs = req.vk.max_inputs;
     if n_real > max_inputs {
         return Err(CodegenError::Meta(format!(
             "n_real {n_real} exceeds MAX_INPUTS {max_inputs}"
         )));
     }
 
-    let layer1_src = req.backend.render_layer1(req.vk)?;
     let layer2_src = req.layer2.layer2_source();
     let wiring = req.layer2.layer2_wiring(req.codegen_meta)?;
 
@@ -109,7 +105,7 @@ pub fn compose(req: &ComposeRequest) -> Result<GeneratedProject, CodegenError> {
 
     let files = vec![
         (PathBuf::from("aiken.toml"), aiken_toml(req.project_name)),
-        (PathBuf::from(format!("lib/zkwrap/{backend_mod}.ak")), layer1_src),
+        (PathBuf::from(format!("lib/zkwrap/{backend_mod}.ak")), layer1.source),
         (PathBuf::from(format!("lib/zkwrap/{system_mod}.ak")), layer2_src.to_string()),
         (PathBuf::from("validators/verify.ak"), validator_src),
     ];
