@@ -24,7 +24,7 @@ jobs:
       rust: ${{ steps.filter.outputs.rust }}
       go: ${{ steps.filter.outputs.go }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -45,7 +45,7 @@ jobs:
       run:
         working-directory: zkwrap-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Channel + components come from zkwrap-rs/rust-toolchain.toml; rustup
       # installs them on first use. `rustup show` makes that explicit and early.
       - name: Install pinned toolchain
@@ -71,7 +71,7 @@ jobs:
       run:
         working-directory: zkwrap-gnark
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version-file: zkwrap-gnark/go.mod

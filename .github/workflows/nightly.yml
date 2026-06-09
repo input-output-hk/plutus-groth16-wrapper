@@ -20,7 +20,7 @@ jobs:
       run:
         working-directory: zkwrap-gnark
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version-file: zkwrap-gnark/go.mod
@@ -35,7 +35,7 @@ jobs:
       run:
         working-directory: zkwrap-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install pinned toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2
