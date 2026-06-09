@@ -99,14 +99,14 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Verify no required job failed
+      # `needs.*.result` fans out over every job in `needs`, so adding a job
+      # there (and nowhere else) keeps this gate honest. Only `failure`/
+      # `cancelled` trips it — `skipped` (a path-filtered job that didn't run)
+      # and `success` are both fine, so an untouched area never blocks merge.
+      - name: Show job results
+        run: echo "changes=${{ needs.changes.result }} rust=${{ needs.rust.result }} go=${{ needs.go.result }}"
+      - name: Fail if any required job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
-          echo "rust: ${{ needs.rust.result }}"
-          echo "go:   ${{ needs.go.result }}"
-          for r in "${{ needs.rust.result }}" "${{ needs.go.result }}"; do
-            if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
-              echo "::error::a required job failed or was cancelled"
-              exit 1
-            fi
-          done
-          echo "All required checks passed (skipped jobs are OK)."
+          echo "::error::a required job failed or was cancelled"
+          exit 1
