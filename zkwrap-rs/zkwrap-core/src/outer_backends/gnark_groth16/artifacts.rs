@@ -22,7 +22,7 @@ pub struct CommitmentKey {
 /// The outer Groth16/BLS12-381 verifying key (`outer_vk.json`).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct OuterVk {
-    /// Outer-backend identifier, e.g. `"gnark-groth16-bls12381"`. Keys Layer 1.
+    /// Outer-backend identifier, e.g. `"gnark-groth16-bls12381"`. Keys the outer layer.
     pub backend:         String,
     /// `MAX_INPUTS` baked into the wrapper circuit at trusted-setup time.
     pub max_inputs:      usize,

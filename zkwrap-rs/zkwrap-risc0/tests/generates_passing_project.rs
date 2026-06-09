@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use zkwrap_core::{compose, ComposeRequest, Groth16Backend, OuterProof, TestBlock};
-use zkwrap_risc0::Risc0Layer2;
+use zkwrap_risc0::Risc0Codegen;
 
 // --- spike fixture values not present in outer_proof.json (RISC Zero guest
 //     output + off-chain cross-checks).
@@ -87,7 +87,7 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
 
     let reals = int_list(&proof.inputs[0..5]);
 
-    // Layer 1, literal-input form: groth16.verify(proof…, vkhash, inputs).
+    // Outer layer, literal-input form: groth16.verify(proof…, vkhash, inputs).
     let l1_verify = |vkh: &str, ins: &str| {
         format!(
             "groth16.verify(\n  {pi_a},\n  {pi_b},\n  {pi_c},\n  {cu},\n  {pok},\n  {vkh},\n  {ins},\n)"
@@ -153,8 +153,8 @@ fn composer_emits_aiken_check_passing_project() {
 
     let project = compose(&ComposeRequest {
         project_name: "zkwrap/risc0_groth16",
-        backend: &Groth16Backend,
-        layer2: &Risc0Layer2,
+        outer: &Groth16Backend,
+        inner: &Risc0Codegen,
         vk_json: &vk_json,
         inner_vk_hash: &proof.inner_vk_hash,
         codegen_meta: &codegen,

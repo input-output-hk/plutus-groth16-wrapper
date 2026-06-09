@@ -1,8 +1,8 @@
-//! The gnark Groth16/BLS12-381 outer backend — the Layer 1 proving engine.
+//! The gnark Groth16/BLS12-381 outer backend — the outer-layer proving engine.
 //!
 //! Renders the generic `groth16.ak` verifier with the setup-bound crypto
 //! (outer VK points, IC array, Pedersen commitment keys) baked into `verify`
-//! from an [`OuterVk`]. 
+//! from an [`OuterVk`].
 
 /// The outer-proof artifact schema (`outer_vk.json` / `outer_proof.json`).
 pub mod artifacts;
@@ -11,21 +11,21 @@ pub mod artifacts;
 pub mod vk_hash;
 
 use self::artifacts::OuterVk;
-use crate::codegen::{CodegenError, Layer1, OuterBackend};
+use crate::codegen::{CodegenError, OuterCodegen, OuterWiring};
 use minijinja::{context, Environment};
 
-const LAYER1_TEMPLATE: &str = include_str!("gnark_groth16/layer1.ak.jinja");
+const OUTER_TEMPLATE: &str = include_str!("gnark_groth16/outer.ak.jinja");
 const BACKEND_ID: &str = "gnark-groth16-bls12381";
 const MODULE_NAME: &str = "groth16";
 
 /// Proof-side parameters forwarded into `groth16.verify` ahead of
-/// `inner_vk_hash` and the inputs list (the Layer 1 ABI; see [`crate::codegen`]).
+/// `inner_vk_hash` and the inputs list (the outer-layer ABI; see [`crate::codegen`]).
 const PROOF_PARAMS: &[&str] = &["pi_a", "pi_b", "pi_c", "commitment_uncompressed", "commitment_pok"];
 
 /// The gnark Groth16/BLS12-381 outer backend.
 pub struct Groth16Backend;
 
-impl OuterBackend for Groth16Backend {
+impl OuterCodegen for Groth16Backend {
     fn backend_id(&self) -> &str {
         BACKEND_ID
     }
@@ -38,7 +38,7 @@ impl OuterBackend for Groth16Backend {
         PROOF_PARAMS
     }
 
-    fn render_layer1(&self, vk_json: &str) -> Result<Layer1, CodegenError> {
+    fn render(&self, vk_json: &str) -> Result<OuterWiring, CodegenError> {
         let vk = OuterVk::from_json(vk_json).map_err(|e| CodegenError::Artifact(e.to_string()))?;
         if vk.backend != BACKEND_ID {
             return Err(CodegenError::Artifact(format!(
@@ -52,7 +52,7 @@ impl OuterBackend for Groth16Backend {
         // leading whitespace before one, so loop bodies keep their own indent.
         env.set_trim_blocks(true);
         env.set_lstrip_blocks(true);
-        env.add_template(MODULE_NAME, LAYER1_TEMPLATE)
+        env.add_template(MODULE_NAME, OUTER_TEMPLATE)
             .map_err(|e| CodegenError::Render(e.to_string()))?;
         let tmpl = env
             .get_template(MODULE_NAME)
@@ -69,7 +69,7 @@ impl OuterBackend for Groth16Backend {
                 ck_g_sigma_neg => ck.g_sigma_neg,
             })
             .map_err(|e| CodegenError::Render(e.to_string()))?;
-        Ok(Layer1 { source, max_inputs: vk.max_inputs })
+        Ok(OuterWiring { source, max_inputs: vk.max_inputs })
     }
 }
 
@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn renders_baked_vk_constants() {
-        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
+        let out = Groth16Backend.render(&fixture_vk_json()).unwrap().source;
         // Outer VK points baked in.
         assert!(out.contains(
             "const vk_alpha_g1: ByteArray = #\"b0a27b5ce1e9e0fb9b1e0930686f8f3b8198c17927f23ea4925baf618661e699ace14793be2cc7b8df30b3478351bec6\""
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn renders_full_ic_array_and_unroll() {
-        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
+        let out = Groth16Backend.render(&fixture_vk_json()).unwrap().source;
         // 11 IC constants for MAX_INPUTS = 8: ic_0 .. ic_10.
         assert!(out.contains("const ic_0: ByteArray"));
         assert!(out.contains("const ic_10: ByteArray"));
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn no_unrendered_template_holes() {
-        let out = Groth16Backend.render_layer1(&fixture_vk_json()).unwrap().source;
+        let out = Groth16Backend.render(&fixture_vk_json()).unwrap().source;
         assert!(!out.contains("{{"), "unrendered minijinja hole remains");
         assert!(!out.contains("{%"), "unrendered minijinja tag remains");
     }

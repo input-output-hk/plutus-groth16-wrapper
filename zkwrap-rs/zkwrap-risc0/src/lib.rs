@@ -1,28 +1,28 @@
-//! The RISC Zero plugin: the Layer 2 half of ADR-0007.
+//! The RISC Zero plugin: the inner-layer half of ADR-0007.
 //!
-//! Ships the generic, constant-free Layer 2 source (`risc0.ak`) and implements
-//! [`Layer2Codegen`], turning the canonical inner proof's `meta.json.codegen`
-//! section (per-guest constants) into the wiring the Composer bakes into
-//! `validators/verify.ak`.
+//! Ships the generic, constant-free inner-layer source (`risc0.ak`) and
+//! implements [`InnerCodegen`], turning the canonical inner proof's
+//! `meta.json.codegen` section (per-guest constants) into the wiring the
+//! Composer bakes into `validators/verify.ak`.
 //!
 //! The `Canonicalize` half (native RISC Zero receipt → canonical inner proof)
 //! is Phase-4 work and not implemented here yet.
 
 use serde_json::Value;
-use zkwrap_core::{CodegenError, Layer2Codegen, Layer2Wiring, RawParam};
+use zkwrap_core::{CodegenError, InnerCodegen, InnerWiring, RawParam};
 
 /// `system_id` matching the canonical inner proof's `meta.json`.
 pub const SYSTEM_ID: &str = "risc0-v3";
 const MODULE_NAME: &str = "risc0";
 const N_REAL: usize = 5;
 
-/// The generic Layer 2 source, vendored verbatim into the generated project.
-const LAYER2_SOURCE: &str = include_str!("risc0.ak");
+/// The generic inner-layer source, vendored verbatim into the generated project.
+const INNER_SOURCE: &str = include_str!("risc0.ak");
 
-/// RISC Zero Layer 2 codegen.
-pub struct Risc0Layer2;
+/// RISC Zero inner-layer codegen.
+pub struct Risc0Codegen;
 
-impl Layer2Codegen for Risc0Layer2 {
+impl InnerCodegen for Risc0Codegen {
     fn system_id(&self) -> &str {
         SYSTEM_ID
     }
@@ -35,11 +35,11 @@ impl Layer2Codegen for Risc0Layer2 {
         MODULE_NAME
     }
 
-    fn layer2_source(&self) -> &'static str {
-        LAYER2_SOURCE
+    fn module_source(&self) -> &'static str {
+        INNER_SOURCE
     }
 
-    fn layer2_wiring(&self, codegen: &Value) -> Result<Layer2Wiring, CodegenError> {
+    fn wiring(&self, codegen: &Value) -> Result<InnerWiring, CodegenError> {
         let image_id = hex_field(codegen, "image_id", 32)?;
         let post_state = hex_field(codegen, "post_state_digest", 32)?;
         let control_root = hex_field(codegen, "control_root", 32)?;
@@ -63,7 +63,7 @@ impl Layer2Codegen for Risc0Layer2 {
             format!("const bn254_control_id: Int = 0x{bn254}"),
         ];
 
-        Ok(Layer2Wiring {
+        Ok(InnerWiring {
             consts,
             raw_params: vec![RawParam::new("journal_bytes", "ByteArray")],
             call_expr: "risc0.real_inputs(journal_bytes, control_root_0, control_root_1, \
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn baked_inputs_match_outer_proof() {
-        let wiring = Risc0Layer2.layer2_wiring(&test_codegen()).unwrap();
+        let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
         let proof = OuterProof::from_json(
             &std::fs::read_to_string(repo_path("zkwrap-gnark/testdata/groth16-outer-proof.json"))
                 .unwrap(),
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn wiring_shape() {
-        let wiring = Risc0Layer2.layer2_wiring(&test_codegen()).unwrap();
+        let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
         assert_eq!(wiring.raw_params, vec![RawParam::new("journal_bytes", "ByteArray")]);
         assert!(wiring.call_expr.starts_with("risc0.real_inputs(journal_bytes,"));
         assert_eq!(wiring.consts.len(), 5);
@@ -178,7 +178,7 @@ mod tests {
             "bn254_control_id": "c07a65145c3cb48b6101962ea607a4dd93c753bb26975cb47feb00d3666e4404",
         });
         assert!(matches!(
-            Risc0Layer2.layer2_wiring(&bad),
+            Risc0Codegen.wiring(&bad),
             Err(CodegenError::Meta(_))
         ));
     }

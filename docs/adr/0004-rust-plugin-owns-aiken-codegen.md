@@ -1,6 +1,6 @@
 # Rust plugin library owns Aiken validator codegen
 
-**Status:** superseded by [ADR-0007 (two-axis Aiken codegen)](0007-two-axis-aiken-codegen.md). The core conclusion holds — codegen is Rust, not Go — but ADR-0007 splits ownership across two axes: the inner-system plugin owns only Layer 2, while Layer 1 belongs to the outer backend, with a Composer stitching them. The "plugin owns the whole template" framing below is outdated.
+**Status:** superseded by [ADR-0007 (two-axis Aiken codegen)](0007-two-axis-aiken-codegen.md). The core conclusion holds — codegen is Rust, not Go — but ADR-0007 splits ownership across two axes: the inner-system plugin owns only the inner layer, while the outer layer belongs to the outer backend, with a Composer stitching them. The "plugin owns the whole template" framing below is outdated.
 
 Aiken validator generation is the responsibility of each Rust plugin crate, not the Go gnark prover binary.
 

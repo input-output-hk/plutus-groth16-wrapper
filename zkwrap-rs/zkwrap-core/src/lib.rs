@@ -1,5 +1,5 @@
 pub mod codegen;
-pub use codegen::{CodegenError, Layer2Codegen, Layer2Wiring, OuterBackend, RawParam};
+pub use codegen::{CodegenError, InnerCodegen, InnerWiring, OuterCodegen, OuterWiring, RawParam};
 pub use codegen::composer::{compose, ComposeRequest, GeneratedProject, TestBlock};
 
 pub mod outer_backends;

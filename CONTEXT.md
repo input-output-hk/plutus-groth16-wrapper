@@ -45,36 +45,36 @@ _Avoid_: VKHash, VK commitment, verifying key hash
 **Outer public inputs**: The public inputs to the outer BLS12-381 proof: `[InnerVKHash, input_0, ..., input_{MAX-1}]`. Inner public inputs are exposed directly — not hashed into a commitment. No on-chain hash computation is required anywhere in the Aiken validator.
 _Avoid_: outer public signals, wrapper public outputs
 
-**Aiken validator**: The generated on-chain Cardano script that verifies an outer BLS12-381 proof. Composed from a Layer 1 fragment (chosen by outer backend) and a Layer 2 fragment (chosen by inner proof system), plus a generated constants block.
+**Aiken validator**: The generated on-chain Cardano script that verifies an outer BLS12-381 proof. Composed from an outer-layer fragment (chosen by outer backend) and an inner-layer fragment (chosen by inner proof system), plus a generated constants block.
 _Avoid_: Aiken verifier, on-chain verifier, Cardano validator
 
-**Layer 1 (proving engine)**: The generic, inner-system-agnostic on-chain verifier for an outer backend's proof — pairing checks, IC accumulation, and the backend's public-input *expansion convention* (prepend `InnerVKHash`, pad to `MAX_INPUTS`, fold any commitment input). One Layer 1 per outer backend (Groth16/BLS12-381, PLONK, etc.). Its only per-instance inputs are the embedded outer VK constants and the `InnerVKHash` constant. It is agnostic to which inner system produced the inputs.
-_Avoid_: outer verifier layer, generic layer, verification engine
+**Outer layer (proving engine)**: The generic, inner-system-agnostic on-chain verifier for an outer backend's proof — pairing checks, IC accumulation, and the backend's public-input *expansion convention* (prepend `InnerVKHash`, pad to `MAX_INPUTS`, fold any commitment input). One outer layer per outer backend (Groth16/BLS12-381, PLONK, etc.). Its only per-instance inputs are the embedded outer VK constants and the `InnerVKHash` constant. It is agnostic to which inner system produced the inputs.
+_Avoid_: Layer 1, generic layer, verification engine
 
-**Layer 2 (inner-system scaffolding)**: The system-specific fragment that derives the `n_real` real inner public inputs from the redeemer's inner artifact (e.g. RISC Zero's journal-authentication chain producing 5 inputs). Its sole output is a `List<Int>` of length `n_real`. It knows nothing about the outer public-input layout — not `InnerVKHash`, `MAX_INPUTS`, padding, or the outer backend.
-_Avoid_: system layer, journal layer, adapter layer
+**Inner layer (inner-system scaffolding)**: The system-specific fragment that derives the `n_real` real inner public inputs from the redeemer's inner artifact (e.g. RISC Zero's journal-authentication chain producing 5 inputs). Its sole output is a `List<Int>` of length `n_real`. It knows nothing about the outer public-input layout — not `InnerVKHash`, `MAX_INPUTS`, padding, or the outer backend.
+_Avoid_: Layer 2, system layer, journal layer, adapter layer
 
-**Composer**: The Rust code that stitches one Layer 1 + one Layer 2 into a generated Aiken **project** (`aiken.toml`, `lib/`, `validators/`, optional `test/`) that compiles and tests standalone. It **renders** Layer 1 into `lib/` with the setup-bound crypto constants (outer VK points, Pedersen commitment keys from `outer_vk.json`) baked into its `verify`; **vendors** the generic, constant-free Layer 2 logic into `lib/`; and generates `validators/verify.ak` — the app/inner-binding constants block plus the wiring of Layer 2 → Layer 1. Dispatches on the outer-backend identifier (→ Layer 1) and `system_id` (→ Layer 2). Bakes `n_real`/`MAX_INPUTS` as the *shape* of the generated glue, not as runtime constants.
+**Composer**: The Rust code that stitches one outer layer + one inner layer into a generated Aiken **project** (`aiken.toml`, `lib/`, `validators/`, optional `test/`) that compiles and tests standalone. It **renders** the outer layer into `lib/` with the setup-bound crypto constants (outer VK points, Pedersen commitment keys from `outer_vk.json`) baked into its `verify`; **vendors** the generic, constant-free inner-layer logic into `lib/`; and generates `validators/verify.ak` — the app/inner-binding constants block plus the wiring of inner layer → outer layer. Dispatches on the outer-backend identifier (→ outer layer) and `system_id` (→ inner layer). Bakes `n_real`/`MAX_INPUTS` as the *shape* of the generated glue, not as runtime constants.
 _Avoid_: generator, stitcher, codegen orchestrator
 
 **Constant-handling principle**: Two kinds of instance-specific value, handled differently by *why* they exist.
-- **Setup-bound crypto** — outer VK points, Pedersen commitment keys. Come from the trusted setup; can never depend on application logic or the redeemer. **Baked directly into the Layer 1 `verify`** (rendered by the Composer), never exposed as parameters.
+- **Setup-bound crypto** — outer VK points, Pedersen commitment keys. Come from the trusted setup; can never depend on application logic or the redeemer. **Baked directly into the outer-layer `verify`** (rendered by the Composer), never exposed as parameters.
 - **Inner/app-binding** — `InnerVKHash`, RISC Zero `image_id` / `control_root` / per-guest digests. Identify which inner system/program; may later become redeemer-driven (e.g. "accept any of N allowed programs"). These are **function parameters** of the generic `lib/` logic; the generated `validators/verify.ak` holds them as baked `const`s and passes them in, so promoting one to a redeemer field is a one-line edit at the call site.
 
-The net effect: Layer 2 `lib/` logic stays invariant across deployments, and the policy surface (which programs/systems are accepted) lives entirely in `validators/verify.ak` — while the verifier's cryptographic identity (the outer VK) is fixed inside Layer 1 where app logic cannot reach it.
+The net effect: inner-layer `lib/` logic stays invariant across deployments, and the policy surface (which programs/systems are accepted) lives entirely in `validators/verify.ak` — while the verifier's cryptographic identity (the outer VK) is fixed inside the outer layer where app logic cannot reach it.
 
-**Outer-backend identifier**: A versioned string (e.g. `gnark-groth16-bls12381`) naming which outer backend produced a proof, carried in `outer_vk.json` (authoritative) and echoed in `outer_proof.json`. Keys the composer's choice of Layer 1. Distinct from `system_id`, which keys Layer 2.
+**Outer-backend identifier**: A versioned string (e.g. `gnark-groth16-bls12381`) naming which outer backend produced a proof, carried in `outer_vk.json` (authoritative) and echoed in `outer_proof.json`. Keys the composer's choice of outer layer. Distinct from `system_id`, which keys the inner layer.
 _Avoid_: backend name, engine id, proof type
 
 ### Components
 
-**Plugin**: A Rust library crate per inner proof system (e.g. `zkwrap-risc0`, `zkwrap-sp1`) that (1) converts the system's native output into a canonical inner proof, and (2) contributes the **Layer 2** fragment. It does not own Layer 1 — that belongs to the outer backend — so adding a system never touches proof-verification code. The Composer combines the plugin's Layer 2 with the chosen Layer 1.
+**Plugin**: A Rust library crate per inner proof system (e.g. `zkwrap-risc0`, `zkwrap-sp1`) that (1) converts the system's native output into a canonical inner proof, and (2) contributes the **inner-layer** fragment. It does not own the outer layer — that belongs to the outer backend — so adding a system never touches proof-verification code. The Composer combines the plugin's inner layer with the chosen outer layer.
 _Avoid_: adapter, connector, parser
 
 **Prover binary**: The language-native executable that reads a canonical inner proof from disk and runs the outer backend to produce a BLS12-381 outer proof. Pure prover — emits `outer_proof.bin` and `outer_vk.bin` only; no Aiken code. One binary per outer backend (`zkwrap-gnark` in Go, future `zkwrap-halo2` in Rust).
 _Avoid_: wrapper prover, outer prover CLI
 
-**Inner system config**: The `meta.json` file inside the canonical inner proof bundle. MUST contain `system_id` and `n_real` (read by the prover binary); MAY contain a system-specific `codegen` section (read only by the Composer, opaque to the prover) carrying the per-guest Layer 2 constants — e.g. RISC Zero's `image_id`, `post_state_digest`, `control_root`, `bn254_control_id`. There is no separate sidecar file; `meta.json` is the inner system config.
+**Inner system config**: The `meta.json` file inside the canonical inner proof bundle. MUST contain `system_id` and `n_real` (read by the prover binary); MAY contain a system-specific `codegen` section (read only by the Composer, opaque to the prover) carrying the per-guest inner-layer constants — e.g. RISC Zero's `image_id`, `post_state_digest`, `control_root`, `bn254_control_id`. There is no separate sidecar file; `meta.json` is the inner system config.
 _Avoid_: plugin metadata, system manifest, sidecar
 
 ## Example dialogue

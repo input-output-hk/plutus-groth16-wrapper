@@ -1,6 +1,6 @@
-// Layer 2 — RISC Zero inner-system scaffolding.
+// Inner layer — RISC Zero inner-system scaffolding.
 //
-// VENDORED VERBATIM by zkwrap-core's Composer (ADR-0007): generic and constant-free
+// VENDORED VERBATIM by zkwrap-core's Composer: generic and constant-free
 // across guest programs. The per-guest values (image_id, post_state_digest, the
 // control_root split halves, bn254_control_id) arrive as *parameters*; only the
 // RISC Zero `tagged_struct` protocol tags below are baked, and those are invariant
