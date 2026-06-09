@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
@@ -20,11 +21,12 @@ type outerProofFile struct {
 }
 
 type proofObj struct {
-	Ar            string   `json:"ar"`
-	Bs            string   `json:"bs"`
-	Krs           string   `json:"krs"`
-	Commitments   []string `json:"commitments"`
-	CommitmentPok string   `json:"commitment_pok"`
+	Ar                      string   `json:"ar"`
+	Bs                      string   `json:"bs"`
+	Krs                     string   `json:"krs"`
+	Commitments             []string `json:"commitments"`
+	CommitmentsUncompressed []string `json:"commitments_uncompressed"`
+	CommitmentPok           string   `json:"commitment_pok"`
 }
 
 // WriteProof serializes the outer proof + public inputs as the canonical
@@ -36,8 +38,10 @@ func WriteProof(w io.Writer, p *bls12381groth16.Proof, innerVKHash fr.Element, i
 	}
 
 	commitmentsHex := make([]string, len(p.Commitments))
+	commitmentsUncompressedHex := make([]string, len(p.Commitments))
 	for i := range p.Commitments {
 		commitmentsHex[i] = g1Hex(p.Commitments[i])
+		commitmentsUncompressedHex[i] = g1HexUncompressed(p.Commitments[i])
 	}
 
 	hashBytes := innerVKHash.Bytes()
@@ -53,11 +57,12 @@ func WriteProof(w io.Writer, p *bls12381groth16.Proof, innerVKHash fr.Element, i
 		Backend:   OuterBackend,
 		MaxInputs: maxInputs,
 		Proof: proofObj{
-			Ar:            g1Hex(p.Ar),
-			Bs:            g2Hex(p.Bs),
-			Krs:           g1Hex(p.Krs),
-			Commitments:   commitmentsHex,
-			CommitmentPok: g1Hex(p.CommitmentPok),
+			Ar:                      g1Hex(p.Ar),
+			Bs:                      g2Hex(p.Bs),
+			Krs:                     g1Hex(p.Krs),
+			Commitments:             commitmentsHex,
+			CommitmentsUncompressed: commitmentsUncompressedHex,
+			CommitmentPok:           g1Hex(p.CommitmentPok),
 		},
 		InnerVKHash: hex.EncodeToString(hashBytes[:]),
 		Inputs:      inputsHex,
@@ -92,6 +97,21 @@ func ReadProof(r io.Reader) (*bls12381groth16.Proof, fr.Element, []fr.Element, i
 	for i, s := range f.Proof.Commitments {
 		if err := setG1FromHex(&p.Commitments[i], fmt.Sprintf("proof.commitments[%d]", i), s); err != nil {
 			return nil, fr.Element{}, nil, 0, err
+		}
+	}
+	// commitments_uncompressed is a redeemer-side artifact (the exact bytes
+	// gnark hashes for commit_fr). It is redundant with the compressed
+	// commitment, so when present we validate it matches rather than trust it.
+	if n := len(f.Proof.CommitmentsUncompressed); n > 0 {
+		if n != len(p.Commitments) {
+			return nil, fr.Element{}, nil, 0, fmt.Errorf(
+				"proof.commitments_uncompressed length %d != commitments %d", n, len(p.Commitments))
+		}
+		for i := range p.Commitments {
+			if want := g1HexUncompressed(p.Commitments[i]); !strings.EqualFold(f.Proof.CommitmentsUncompressed[i], want) {
+				return nil, fr.Element{}, nil, 0, fmt.Errorf(
+					"proof.commitments_uncompressed[%d] does not match the compressed commitment", i)
+			}
 		}
 	}
 	if err := setG1FromHex(&p.CommitmentPok, "proof.commitment_pok", f.Proof.CommitmentPok); err != nil {

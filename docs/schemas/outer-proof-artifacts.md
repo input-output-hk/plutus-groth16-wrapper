@@ -108,6 +108,7 @@ plugin's Aiken codegen / test-fixture machinery.
     "bs":             "<96 bytes, compressed BLS12-381 G2, hex>",
     "krs":            "<48 bytes, compressed BLS12-381 G1, hex>",
     "commitments":    ["<48 bytes, compressed BLS12-381 G1, hex>", ...],
+    "commitments_uncompressed": ["<96 bytes, uncompressed BLS12-381 G1, hex>", ...],
     "commitment_pok": "<48 bytes, compressed BLS12-381 G1, hex>"
   },
   "inner_vk_hash": "<32 bytes, BLS12-381 Fr, hex>",
@@ -127,6 +128,7 @@ plugin's Aiken codegen / test-fixture machinery.
 | `proof.bs`             | Outer Groth16 proof B point, compressed G2. |
 | `proof.krs`            | Outer Groth16 proof C point, compressed G1. |
 | `proof.commitments`    | One compressed G1 point per entry in `outer_vk.json`'s `commitment_keys`. Pedersen commitments to the values listed in `public_and_commitment_committed`. |
+| `proof.commitments_uncompressed` | The 96-byte uncompressed (gnark `RawBytes`, `x_be ‖ y_be`) form of each `commitments` entry. Redundant with `commitments` but carried because it is **the exact preimage gnark hashes for the Pedersen `commit_fr`**, and the Aiken verifier needs those bytes as a redeemer artifact — Plutus has no `G1 → uncompressed-bytes` builtin (see ADR-0006). The prover emits it via `G1Affine.RawBytes()`; `ReadProof` validates each entry decompresses to the matching `commitments[i]`. |
 | `proof.commitment_pok` | Batched Pedersen proof-of-knowledge, compressed G1, that binds the prover to the commitments. Verifier checks `e(commitment_pok, [g]_2) == ∏ e(commitments[i], [g_sigma_neg]_2)` (one combined pairing per the batched form gnark uses). |
 | `inner_vk_hash`        | The in-circuit Poseidon hash of the inner VK, exposed as the first outer public signal. 32-byte big-endian BLS12-381 Fr element. |
 | `inputs`               | The `MAX_INPUTS`-length public input vector exposed by the wrapper circuit. Slots `[0, n_real)` mirror the canonical inner proof's `public_inputs.bin`; slots `[n_real, MAX_INPUTS)` are zero. Each element is a 32-byte big-endian BLS12-381 Fr element. |
@@ -154,6 +156,17 @@ in `[0, r)` where `r` is the BLS12-381 scalar field modulus
 48 bytes, zcash-flavored compressed affine encoding. The three most significant
 bits of byte 0 are flags: compression (always 1 in this format), infinity, and
 y-sign. The remaining 381 bits are the x-coordinate big-endian.
+
+### BLS12-381 G1 uncompressed point
+
+96 bytes, gnark `RawBytes` layout: the 48-byte big-endian x-coordinate followed
+by the 48-byte big-endian y-coordinate. The three most significant bits of byte
+0 are the format flags (`0b000` for a finite point, `0b010` for infinity); the
+remaining 381 bits of the first 48 bytes are x. This is what
+`G1Affine.RawBytes()` produces and what gnark hashes to derive the Pedersen
+`commit_fr` (see ADR-0006). The Aiken verifier reconstructs the compressed form
+from these bytes on-chain, so only the uncompressed form is supplied as a
+redeemer.
 
 ### BLS12-381 G2 compressed point
 

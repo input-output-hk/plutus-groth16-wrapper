@@ -8,8 +8,14 @@
 //! catch a silent change in `gnark-crypto`'s Poseidon2 that would otherwise
 //! shift every baked constant. Pinned against `inner_vk_hash_vectors.json`.
 
-use crate::inner_proof::{Bn254G1, Bn254G2, Bn254Vk};
-use crate::poseidon2::MerkleDamgardHasher;
+/// Poseidon2 over the BLS12-381 scalar field — the hash the wrapper circuit
+/// uses; exists solely for this cross-check.
+pub mod poseidon2;
+#[cfg(test)]
+mod test_vectors;
+
+use self::poseidon2::MerkleDamgardHasher;
+use crate::inner::{Bn254G1, Bn254G2, Bn254Vk};
 use ark_bls12_381::Fr;
 use ark_bn254::{Bn254, Fq, Fq12, G1Affine, G2Affine};
 use ark_ec::pairing::Pairing;
@@ -124,8 +130,8 @@ fn parse_g2(p: &Bn254G2) -> G2Affine {
 
 #[cfg(test)]
 mod tests {
+    use super::test_vectors::load_vectors;
     use super::*;
-    use crate::test_vectors::load_vectors;
 
     fn fp_from_hex(h: &str) -> Fq {
         Fq::from_be_bytes_mod_order(&hex::decode(h).unwrap())
@@ -164,8 +170,18 @@ mod tests {
         let vk = load_vk();
         let gamma_neg = -parse_g2(&vk.gamma_g2);
         let delta_neg = -parse_g2(&vk.delta_g2);
-        let g = [&gamma_neg.x.c0, &gamma_neg.x.c1, &gamma_neg.y.c0, &gamma_neg.y.c1];
-        let d = [&delta_neg.x.c0, &delta_neg.x.c1, &delta_neg.y.c0, &delta_neg.y.c1];
+        let g = [
+            &gamma_neg.x.c0,
+            &gamma_neg.x.c1,
+            &gamma_neg.y.c0,
+            &gamma_neg.y.c1,
+        ];
+        let d = [
+            &delta_neg.x.c0,
+            &delta_neg.x.c1,
+            &delta_neg.y.c0,
+            &delta_neg.y.c1,
+        ];
         for (i, fp) in g.iter().enumerate() {
             assert_eq!(fp_to_hex(fp), v.vk.gamma_neg[i], "gamma_neg fp {i}");
         }

@@ -14,9 +14,9 @@ import (
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	stdgroth16 "github.com/consensys/gnark/std/recursion/groth16"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/circuit"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/inner"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 )
 
 // prove loads the canonical inner proof from innerDir, loads the setup bundle

@@ -5,9 +5,9 @@
 // `zkwrap-gnark` at MAX_INPUTS = 8 with the RISC Zero canonical inner proof.
 //
 // Two verifier layers (per ADR-0004 §"Two-layer Aiken validator"):
-//   * `verify`        — Layer 1: generic Groth16/BLS12-381 + Bowe–Gabizon binding.
-//   * `verify_risc0`  — Layer 2: reconstruct the 5 RISC Zero public inputs from
-//                       `journal_bytes` + version constants, then delegate to Layer 1.
+//   * `verify`        — outer layer: generic Groth16/BLS12-381 + Bowe–Gabizon binding.
+//   * `verify_risc0`  — inner layer: reconstruct the 5 RISC Zero public inputs from
+//                       `journal_bytes` + version constants, then delegate to the outer layer.
 //
 // Soundness gap: this spike treats the point-at-infinity case for `commitment` as
 // out-of-band (validator fails on it). Production codegen must either handle infinity
@@ -259,7 +259,7 @@ pub fn verify(
 }
 
 // =====================================================================
-// Layer 2 — RISC Zero journal authentication chain
+// Inner layer — RISC Zero journal authentication chain
 // (see docs/research/risc0-artifact-format.md §6, §6a)
 //
 // Reconstructs claim_digest on-chain from journal_bytes using the
@@ -614,7 +614,7 @@ test verify_tampered_input() fail {
   )
 }
 
-// Layer 2 tests: claim_digest reconstruction + end-to-end RISC Zero verification.
+// Inner-layer tests: claim_digest reconstruction + end-to-end RISC Zero verification.
 
 test claim_digest_chain_matches() {
   compute_claim_digest_from_journal(fx_journal_bytes) == fx_expected_claim_digest

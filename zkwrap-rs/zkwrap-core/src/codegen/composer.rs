@@ -1,0 +1,229 @@
+//! The Composer — stitches one outer layer ([`OuterCodegen`]) and one inner
+//! layer ([`InnerCodegen`]) into a ready-to-`aiken check` project.
+//!
+//! It owns **all** Aiken string assembly. It renders the outer layer (outer VK
+//! baked) into `lib/zkwrap/<backend>.ak`, vendors the generic inner layer
+//! verbatim into `lib/zkwrap/<system>.ak`, and generates `validators/verify.ak`:
+//! the app/inner-binding const block, the composed entry point, and the supplied
+//! fixture tests. It carries no per-backend or per-system knowledge — only the
+//! two traits and the universal seam.
+
+use std::path::PathBuf;
+
+use minijinja::{context, Environment};
+use serde_json::Value;
+
+use crate::codegen::{CodegenError, InnerCodegen, OuterCodegen};
+
+/// `validators/verify.ak` skeleton. The composition seam's *shape* is universal
+/// across every backend × system; only the lists laid out into it vary, so one
+/// template serves the whole matrix. The Composer prepares those lists below.
+const VALIDATOR_TEMPLATE: &str = include_str!("verify.ak.jinja");
+
+/// A single generated `test` block, supplied by the caller as data so the
+/// Composer needs no per-backend/per-system test knowledge. Rendered into
+/// `validators/verify.ak`, where it can reference the baked consts, the
+/// composed `verify`, and the imported outer / inner modules.
+#[derive(Debug, Clone)]
+pub struct TestBlock {
+    pub name: String,
+    /// An Aiken expression that evaluates to `Bool`.
+    pub body: String,
+    /// Emit `test name() fail { … }` (a tamper-negative test).
+    pub should_fail: bool,
+}
+
+impl TestBlock {
+    pub fn pass(name: impl Into<String>, body: impl Into<String>) -> Self {
+        TestBlock {
+            name: name.into(),
+            body: body.into(),
+            should_fail: false,
+        }
+    }
+    pub fn fail(name: impl Into<String>, body: impl Into<String>) -> Self {
+        TestBlock {
+            name: name.into(),
+            body: body.into(),
+            should_fail: true,
+        }
+    }
+}
+
+/// Everything the Composer needs to assemble one project.
+pub struct ComposeRequest<'a> {
+    /// Aiken project name, `namespace/name` form (e.g. `"zkwrap/risc0_groth16"`).
+    pub project_name: &'a str,
+    pub outer: &'a dyn OuterCodegen,
+    pub inner: &'a dyn InnerCodegen,
+    /// Raw `outer_vk.json` text. Parsed and validated by `outer`; the engine
+    /// never names the concrete VK type.
+    pub vk_json: &'a str,
+    /// `inner_vk_hash` from `outer_proof.json` — raw lowercase hex, no `0x`.
+    pub inner_vk_hash: &'a str,
+    /// The canonical inner proof's `meta.json` `codegen` section.
+    pub codegen_meta: &'a Value,
+    /// Fixture tests to emit (see [`TestBlock`]). May be empty.
+    pub tests: &'a [TestBlock],
+}
+
+/// The in-memory result: relative path → file content. [`Self::write_to`]
+/// materializes it on disk.
+pub struct GeneratedProject {
+    pub files: Vec<(PathBuf, String)>,
+}
+
+impl GeneratedProject {
+    pub fn write_to(&self, root: &std::path::Path) -> std::io::Result<()> {
+        for (rel, content) in &self.files {
+            let path = root.join(rel);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(path, content)?;
+        }
+        Ok(())
+    }
+
+    /// Look up a generated file by its forward-slash relative path (tests).
+    pub fn get(&self, rel: &str) -> Option<&str> {
+        let want = PathBuf::from(rel);
+        self.files
+            .iter()
+            .find(|(p, _)| *p == want)
+            .map(|(_, c)| c.as_str())
+    }
+}
+
+/// Assemble the project.
+pub fn compose(req: &ComposeRequest) -> Result<GeneratedProject, CodegenError> {
+    // The backend parses + validates its own VK artifact (including the
+    // backend-id check) and reports MAX_INPUTS
+    let outer = req.outer.render(req.vk_json)?;
+    let max_inputs = outer.max_inputs;
+
+    let n_real = req.inner.n_real();
+    if n_real > max_inputs {
+        return Err(CodegenError::Meta(format!(
+            "n_real {n_real} exceeds MAX_INPUTS {max_inputs}"
+        )));
+    }
+
+    let inner_src = req.inner.module_source();
+    let wiring = req.inner.wiring(req.codegen_meta)?;
+
+    let validator_src = render_validator(req, &wiring, n_real, max_inputs)?;
+
+    let outer_mod = req.outer.module_name();
+    let inner_mod = req.inner.module_name();
+
+    let files = vec![
+        (PathBuf::from("aiken.toml"), aiken_toml(req.project_name)),
+        (
+            PathBuf::from(format!("lib/zkwrap/{outer_mod}.ak")),
+            outer.source,
+        ),
+        (
+            PathBuf::from(format!("lib/zkwrap/{inner_mod}.ak")),
+            inner_src.to_string(),
+        ),
+        (PathBuf::from("validators/verify.ak"), validator_src),
+    ];
+
+    Ok(GeneratedProject { files })
+}
+
+fn aiken_toml(project_name: &str) -> String {
+    format!(
+        r#"# GENERATED by zkwrap-core's Composer (ADR-0007). Do not edit by hand.
+name = "{project_name}"
+version = "0.0.0"
+plutus = "v3"
+compiler = "1.1.19"
+description = "Generated zkwrap outer-wrapper verifier."
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"
+"#
+    )
+}
+
+/// Generate `validators/verify.ak`: imports, the app/inner-binding const block,
+/// the composed entry point (inner → pad → outer), and the fixture tests.
+///
+/// The literal Aiken scaffolding lives in `verify.ak.jinja`; this function only
+/// prepares the (genuinely computational) lists the template lays out
+fn render_validator(
+    req: &ComposeRequest,
+    wiring: &crate::codegen::InnerWiring,
+    n_real: usize,
+    max_inputs: usize,
+) -> Result<String, CodegenError> {
+    let proof_params = req.outer.proof_params();
+
+    let mut params: Vec<String> = proof_params
+        .iter()
+        .map(|p| format!("{p}: ByteArray"))
+        .collect();
+    for rp in &wiring.raw_params {
+        params.push(format!("{}: {}", rp.name, rp.ty));
+    }
+
+    // Destructure idents i0..i{n_real-1}; the outer call passes them padded to
+    // MAX_INPUTS with literal zeros.
+    let idents: Vec<String> = (0..n_real).map(|i| format!("i{i}")).collect();
+    let mut padded = idents.clone();
+    padded.extend(std::iter::repeat_n("0".to_string(), max_inputs - n_real));
+
+    let tests: Vec<Value> = req
+        .tests
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "name": t.name,
+                "fail": if t.should_fail { " fail" } else { "" },
+                "body": indent(&t.body),
+            })
+        })
+        .collect();
+
+    let mut env = Environment::new();
+    // Line-oriented codegen: trim the newline after a block tag and strip
+    // leading whitespace before one, so loop bodies keep their own indent.
+    env.set_trim_blocks(true);
+    env.set_lstrip_blocks(true);
+    env.add_template("verify", VALIDATOR_TEMPLATE)
+        .map_err(|e| CodegenError::Render(e.to_string()))?;
+    let tmpl = env
+        .get_template("verify")
+        .map_err(|e| CodegenError::Render(e.to_string()))?;
+    tmpl.render(context! {
+        outer_mod => req.outer.module_name(),
+        inner_mod => req.inner.module_name(),
+        inner_vk_hash => req.inner_vk_hash,
+        consts => wiring.consts,
+        params => params,
+        call_expr => wiring.call_expr,
+        idents => idents.join(", "),
+        forwarded_proof => proof_params.join(", "),
+        padded => padded.join(", "),
+        tests => tests,
+    })
+    .map_err(|e| CodegenError::Render(e.to_string()))
+}
+
+/// Indent each line of a multi-line test body by two spaces.
+fn indent(body: &str) -> String {
+    body.lines()
+        .map(|l| {
+            if l.is_empty() {
+                String::new()
+            } else {
+                format!("  {l}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}

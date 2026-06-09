@@ -2,6 +2,9 @@
 name = "zkwrap-risc0"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 zkwrap-core = { path = "../zkwrap-core" }
+serde_json = "1"
+hex = "0.4"

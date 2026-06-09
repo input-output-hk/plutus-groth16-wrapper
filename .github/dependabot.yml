@@ -18,6 +18,16 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    groups:
+      # gnark and gnark-crypto are released in lockstep — a given gnark version
+      # only builds against its matching gnark-crypto line (e.g. gnark v0.14
+      # needs gnark-crypto v0.19.x). Group them so Dependabot proposes the pair
+      # together, never gnark-crypto alone (which can't build against the pinned
+      # gnark).
+      gnark:
+        patterns:
+          - "github.com/consensys/gnark"
+          - "github.com/consensys/gnark-crypto"
 
   # Action versions pinned in .github/workflows/*.
   - package-ecosystem: github-actions

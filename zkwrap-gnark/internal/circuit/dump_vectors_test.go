@@ -19,10 +19,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	bn254 "github.com/consensys/gnark-crypto/ecc/bn254"
-	bn254fp "github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	blsfr "github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	poseidonbls "github.com/consensys/gnark-crypto/ecc/bls12-381/fr/poseidon2"
+	bn254 "github.com/consensys/gnark-crypto/ecc/bn254"
+	bn254fp "github.com/consensys/gnark-crypto/ecc/bn254/fp"
 
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/inner"
 )
@@ -62,15 +62,15 @@ type mdKAT struct {
 }
 
 type vkJSON struct {
-	MaxInputs   int      `json:"max_inputs"`
-	NReal       int      `json:"n_real"`
-	VKBytesHex  string   `json:"vk_bytes_hex"` // raw vk.bin: alpha_g1|beta_g2|gamma_g2|delta_g2|n_ic|IC...
-	GTLimbs     []string `json:"gt_limbs"`   // 12 BN254 Fp, hex 32B BE; gtEmulatedBasis(e(alpha,beta))
-	GammaNeg    []string `json:"gamma_neg"`  // 4 BN254 Fp: X.A0, X.A1, Y.A0, Y.A1
-	DeltaNeg    []string `json:"delta_neg"`  // 4 BN254 Fp: same order
-	IC          [][]string `json:"ic"`      // each [X, Y] BN254 Fp; len == n_real+1 (unpadded)
-	LimbSeqU64  []uint64 `json:"limb_seq_u64"` // full ordered u64 limbs fed to the hasher
-	InnerVKHash string   `json:"inner_vk_hash"` // hex 32B BE
+	MaxInputs   int        `json:"max_inputs"`
+	NReal       int        `json:"n_real"`
+	VKBytesHex  string     `json:"vk_bytes_hex"`  // raw vk.bin: alpha_g1|beta_g2|gamma_g2|delta_g2|n_ic|IC...
+	GTLimbs     []string   `json:"gt_limbs"`      // 12 BN254 Fp, hex 32B BE; gtEmulatedBasis(e(alpha,beta))
+	GammaNeg    []string   `json:"gamma_neg"`     // 4 BN254 Fp: X.A0, X.A1, Y.A0, Y.A1
+	DeltaNeg    []string   `json:"delta_neg"`     // 4 BN254 Fp: same order
+	IC          [][]string `json:"ic"`            // each [X, Y] BN254 Fp; len == n_real+1 (unpadded)
+	LimbSeqU64  []uint64   `json:"limb_seq_u64"`  // full ordered u64 limbs fed to the hasher
+	InnerVKHash string     `json:"inner_vk_hash"` // hex 32B BE
 }
 
 func frHex(e blsfr.Element) string {

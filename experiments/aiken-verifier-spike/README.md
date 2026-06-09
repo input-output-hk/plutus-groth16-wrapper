@@ -13,14 +13,14 @@ will lift the constants and helpers into a Rust template inside `zkwrap-risc0`.
 Two public entry points:
 
 ```
-// Layer 1 (generic) — takes a pre-computed public-input vector.
+// Outer layer (generic) — takes a pre-computed public-input vector.
 verify(
   pi_a, pi_b, pi_c,                                  // outer Groth16 proof points (compressed)
   commitment, commitment_uncompressed, commitment_pok, // Pedersen commitment + PoK
   inner_vk_hash, inputs                              // public inputs (Int form, length = MAX_INPUTS)
 )
 
-// Layer 2 (RISC Zero) — reconstructs the public inputs from raw journal bytes.
+// Inner layer (RISC Zero) — reconstructs the public inputs from raw journal bytes.
 verify_risc0(
   pi_a, pi_b, pi_c,
   commitment, commitment_uncompressed, commitment_pok,
@@ -29,7 +29,7 @@ verify_risc0(
 )
 ```
 
-**Layer 1** performs five steps:
+**The outer layer** performs five steps:
 
 1. Bind `commitment_uncompressed` (96 bytes, gnark `RawBytes` layout) to the
    `commitment` compressed encoding by reconstructing the y-sign flag from
@@ -40,7 +40,7 @@ verify_risc0(
    `commitment` term: `vk_x = IC[0] + IC[1]*vkhash + Σ IC[i+2]*inputs[i] + IC[10]*commit_fr + commitment`.
 5. Standard Groth16 pairing equation against `vk_x`.
 
-**Layer 2** binds the raw guest output (`journal_bytes`) to the public inputs the
+**The inner layer** binds the raw guest output (`journal_bytes`) to the public inputs the
 outer proof commits to. It reconstructs `claim_digest` via the RISC Zero `tagged_struct`
 chain (three SHA-256 calls) and combines with hardcoded version constants from
 `risc0-circuit-recursion 4.0.4`:
@@ -76,16 +76,16 @@ plugin's template.
 |---|---|
 | `commit_fr_matches_gnark` | The pure SHA-256 hash-to-Fr path agrees with gnark's `fr.Hash`. |
 | `compress_binding_matches` | Reconstructed compressed encoding equals the fixture commitment. |
-| `verify_valid_proof` | Layer 1 accepts the real Phase 2 outer proof with literal inputs. |
+| `verify_valid_proof` | The outer layer accepts the real Phase 2 outer proof with literal inputs. |
 | `verify_tampered_inner_vk_hash` *(must fail)* | Bumped `inner_vk_hash` makes verification reject. |
 | `verify_tampered_input` *(must fail)* | Bit-flipped `inputs[0]` makes verification reject. |
 | `claim_digest_chain_matches` | The three-SHA-256 chain produces the receipt's recorded `claim_digest`. |
-| `risc0_inputs_match_fixture` | Layer 2's reconstructed inputs vector equals the proof's public inputs. |
-| `verify_risc0_valid_proof` | End-to-end: journal bytes → reconstructed inputs → Layer 1 accepts. |
+| `risc0_inputs_match_fixture` | The inner layer's reconstructed inputs vector equals the proof's public inputs. |
+| `verify_risc0_valid_proof` | End-to-end: journal bytes → reconstructed inputs → the outer layer accepts. |
 | `verify_risc0_tampered_journal` *(must fail)* | Flipping the journal's first byte breaks the chain. |
 | `verify_batched_valid_proof` | Random-batched single-`final_verify` path accepts the same proof. |
 | `verify_batched_tampered_input` *(must fail)* | Bit-flipped `inputs[0]` rejected by the batched path. |
-| `verify_batched_risc0_valid_proof` | Layer 2 + random-batched Layer 1 end-to-end. |
+| `verify_batched_risc0_valid_proof` | Inner layer + random-batched outer layer end-to-end. |
 | `verify_batched_risc0_tampered_journal` *(must fail)* | Tampered journal rejected by the batched path. |
 
 ## Running

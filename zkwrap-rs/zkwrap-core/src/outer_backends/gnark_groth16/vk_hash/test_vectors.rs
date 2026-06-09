@@ -1,6 +1,6 @@
 //! Deserializer for the gnark-dumped InnerVKHash test vectors
-//! (`testdata/inner_vk_hash_vectors.json`). Test-only; the fixture is the
-//! reference oracle for the Rust Poseidon2 / VK-hash port.
+//! (`inner_vk_hash_vectors.json`, co-located in this module). Test-only; the
+//! fixture is the reference oracle for the Rust Poseidon2 / VK-hash port.
 
 // The fixture structs mirror the full JSON schema for documentation; not every
 // field is asserted in every test.
@@ -51,8 +51,7 @@ pub struct Vk {
     pub inner_vk_hash: String,
 }
 
-const FIXTURE: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/testdata/inner_vk_hash_vectors.json"));
+const FIXTURE: &str = include_str!("inner_vk_hash_vectors.json");
 
 pub fn load_vectors() -> Vectors {
     serde_json::from_str(FIXTURE).expect("parse inner_vk_hash_vectors.json")

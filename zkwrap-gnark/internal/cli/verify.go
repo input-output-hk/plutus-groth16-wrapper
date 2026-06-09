@@ -12,8 +12,8 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 
-	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/circuit"
+	"github.com/input-output-hk/plutus-groth16-wrapper/zkwrap-gnark/internal/outer"
 )
 
 // verify loads outer_proof.json and the setup-dir's outer_vk.json, then runs
