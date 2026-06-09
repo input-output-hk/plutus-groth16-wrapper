@@ -26,37 +26,45 @@ const VALIDATOR_TEMPLATE: &str = include_str!("verify.ak.jinja");
 /// composed `verify`, and the imported outer / inner modules.
 #[derive(Debug, Clone)]
 pub struct TestBlock {
-    pub name:        String,
+    pub name: String,
     /// An Aiken expression that evaluates to `Bool`.
-    pub body:        String,
+    pub body: String,
     /// Emit `test name() fail { … }` (a tamper-negative test).
     pub should_fail: bool,
 }
 
 impl TestBlock {
     pub fn pass(name: impl Into<String>, body: impl Into<String>) -> Self {
-        TestBlock { name: name.into(), body: body.into(), should_fail: false }
+        TestBlock {
+            name: name.into(),
+            body: body.into(),
+            should_fail: false,
+        }
     }
     pub fn fail(name: impl Into<String>, body: impl Into<String>) -> Self {
-        TestBlock { name: name.into(), body: body.into(), should_fail: true }
+        TestBlock {
+            name: name.into(),
+            body: body.into(),
+            should_fail: true,
+        }
     }
 }
 
 /// Everything the Composer needs to assemble one project.
 pub struct ComposeRequest<'a> {
     /// Aiken project name, `namespace/name` form (e.g. `"zkwrap/risc0_groth16"`).
-    pub project_name:  &'a str,
-    pub outer:         &'a dyn OuterCodegen,
-    pub inner:         &'a dyn InnerCodegen,
+    pub project_name: &'a str,
+    pub outer: &'a dyn OuterCodegen,
+    pub inner: &'a dyn InnerCodegen,
     /// Raw `outer_vk.json` text. Parsed and validated by `outer`; the engine
     /// never names the concrete VK type.
-    pub vk_json:       &'a str,
+    pub vk_json: &'a str,
     /// `inner_vk_hash` from `outer_proof.json` — raw lowercase hex, no `0x`.
     pub inner_vk_hash: &'a str,
     /// The canonical inner proof's `meta.json` `codegen` section.
-    pub codegen_meta:  &'a Value,
+    pub codegen_meta: &'a Value,
     /// Fixture tests to emit (see [`TestBlock`]). May be empty.
-    pub tests:         &'a [TestBlock],
+    pub tests: &'a [TestBlock],
 }
 
 /// The in-memory result: relative path → file content. [`Self::write_to`]
@@ -111,8 +119,14 @@ pub fn compose(req: &ComposeRequest) -> Result<GeneratedProject, CodegenError> {
 
     let files = vec![
         (PathBuf::from("aiken.toml"), aiken_toml(req.project_name)),
-        (PathBuf::from(format!("lib/zkwrap/{outer_mod}.ak")), outer.source),
-        (PathBuf::from(format!("lib/zkwrap/{inner_mod}.ak")), inner_src.to_string()),
+        (
+            PathBuf::from(format!("lib/zkwrap/{outer_mod}.ak")),
+            outer.source,
+        ),
+        (
+            PathBuf::from(format!("lib/zkwrap/{inner_mod}.ak")),
+            inner_src.to_string(),
+        ),
         (PathBuf::from("validators/verify.ak"), validator_src),
     ];
 
@@ -149,8 +163,10 @@ fn render_validator(
 ) -> Result<String, CodegenError> {
     let proof_params = req.outer.proof_params();
 
-    let mut params: Vec<String> =
-        proof_params.iter().map(|p| format!("{p}: ByteArray")).collect();
+    let mut params: Vec<String> = proof_params
+        .iter()
+        .map(|p| format!("{p}: ByteArray"))
+        .collect();
     for rp in &wiring.raw_params {
         params.push(format!("{}: {}", rp.name, rp.ty));
     }
@@ -201,7 +217,13 @@ fn render_validator(
 /// Indent each line of a multi-line test body by two spaces.
 fn indent(body: &str) -> String {
     body.lines()
-        .map(|l| if l.is_empty() { String::new() } else { format!("  {l}") })
+        .map(|l| {
+            if l.is_empty() {
+                String::new()
+            } else {
+                format!("  {l}")
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }

@@ -63,12 +63,15 @@ impl std::error::Error for CodegenError {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawParam {
     pub name: String,
-    pub ty:   String,
+    pub ty: String,
 }
 
 impl RawParam {
     pub fn new(name: impl Into<String>, ty: impl Into<String>) -> Self {
-        RawParam { name: name.into(), ty: ty.into() }
+        RawParam {
+            name: name.into(),
+            ty: ty.into(),
+        }
     }
 }
 
@@ -80,13 +83,13 @@ pub struct InnerWiring {
     /// Full `const <name>: <ty> = <value>` Aiken lines holding app/inner-binding
     /// values (baked here so promoting one to a redeemer field is a one-line
     /// edit at the call site).
-    pub consts:     Vec<String>,
+    pub consts: Vec<String>,
     /// Redeemer-side inputs the generated entry must accept and pass through to
     /// [`InnerWiring::call_expr`].
     pub raw_params: Vec<RawParam>,
     /// The expression producing the `List<Int>` of `n_real` real inputs, e.g.
     /// `risc0.real_inputs(journal_bytes, control_root_0, …)`.
-    pub call_expr:  String,
+    pub call_expr: String,
 }
 
 /// Deploy-time plugin trait: contribute the inner layer (inner-system
@@ -116,8 +119,8 @@ pub trait InnerCodegen {
 pub struct OuterWiring {
     /// Rendered `lib/zkwrap/<module_name>.ak` with the outer VK baked into
     /// `verify`.
-    pub source:     String,
-    /// `MAX_INPUTS` baked at circuit setup — the public-input vector length 
+    pub source: String,
+    /// `MAX_INPUTS` baked at circuit setup — the public-input vector length
     pub max_inputs: usize,
 }
 

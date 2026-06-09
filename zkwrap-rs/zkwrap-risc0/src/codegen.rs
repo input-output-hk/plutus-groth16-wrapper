@@ -51,7 +51,10 @@ impl InnerCodegen for Risc0Codegen {
         let consts = vec![
             format!("const control_root_0: Int = 0x{cr0}"),
             format!("const control_root_1: Int = 0x{cr1}"),
-            format!("const image_id: ByteArray = #\"{}\"", hex::encode(&image_id)),
+            format!(
+                "const image_id: ByteArray = #\"{}\"",
+                hex::encode(&image_id)
+            ),
             format!(
                 "const post_state_digest: ByteArray = #\"{}\"",
                 hex::encode(&post_state)
@@ -104,7 +107,12 @@ mod tests {
     }
 
     fn risc0_fixture_hex(name: &str) -> String {
-        hex::encode(std::fs::read(repo_path(&format!("experiments/risc0-hello-world/fixtures/{name}"))).unwrap())
+        hex::encode(
+            std::fs::read(repo_path(&format!(
+                "experiments/risc0-hello-world/fixtures/{name}"
+            )))
+            .unwrap(),
+        )
     }
 
     /// The `meta.json.codegen` section, assembled from the RISC Zero fixtures.
@@ -155,8 +163,13 @@ mod tests {
     #[test]
     fn wiring_shape() {
         let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
-        assert_eq!(wiring.raw_params, vec![RawParam::new("journal_bytes", "ByteArray")]);
-        assert!(wiring.call_expr.starts_with("risc0.real_inputs(journal_bytes,"));
+        assert_eq!(
+            wiring.raw_params,
+            vec![RawParam::new("journal_bytes", "ByteArray")]
+        );
+        assert!(wiring
+            .call_expr
+            .starts_with("risc0.real_inputs(journal_bytes,"));
         assert_eq!(wiring.consts.len(), 5);
         // image_id baked as the guest pre_state_digest.
         assert!(wiring

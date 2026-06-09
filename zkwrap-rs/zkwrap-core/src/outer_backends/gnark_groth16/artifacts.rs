@@ -14,7 +14,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CommitmentKey {
     /// `[g]_2`, compressed G2 hex.
-    pub g:           String,
+    pub g: String,
     /// `[g^{-σ}]_2`, compressed G2 hex.
     pub g_sigma_neg: String,
 }
@@ -23,18 +23,18 @@ pub struct CommitmentKey {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct OuterVk {
     /// Outer-backend identifier, e.g. `"gnark-groth16-bls12381"`. Keys the outer layer.
-    pub backend:         String,
+    pub backend: String,
     /// `MAX_INPUTS` baked into the wrapper circuit at trusted-setup time.
-    pub max_inputs:      usize,
-    pub alpha_g1:        String,
-    pub beta_g2:         String,
-    pub gamma_g2:        String,
-    pub delta_g2:        String,
+    pub max_inputs: usize,
+    pub alpha_g1: String,
+    pub beta_g2: String,
+    pub gamma_g2: String,
+    pub delta_g2: String,
     /// IC array. Length `max_inputs + 2 + commitment_keys.len()`:
     /// `ic[0]` constant term, `ic[1]` the `InnerVKHash` coefficient,
     /// `ic[2..max_inputs+2]` the per-input coefficients, trailing slot(s) the
     /// Pedersen-commitment-folded public input(s).
-    pub ic:              Vec<String>,
+    pub ic: Vec<String>,
     pub commitment_keys: Vec<CommitmentKey>,
     #[serde(default)]
     pub public_and_commitment_committed: Vec<Vec<i64>>,
@@ -76,9 +76,9 @@ impl OuterVk {
 /// The Groth16 proof points and Pedersen artifacts within `outer_proof.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct OuterProofPoints {
-    pub ar:             String,
-    pub bs:             String,
-    pub krs:            String,
+    pub ar: String,
+    pub bs: String,
+    pub krs: String,
     /// Uncompressed (96-byte, gnark RawBytes `x_be ‖ y_be`) Pedersen
     /// commitments — the exact preimage gnark hashes for `commit_fr` and the
     /// redeemer-side artifact the Aiken verifier consumes. (The compressed
@@ -93,13 +93,13 @@ pub struct OuterProofPoints {
 /// A single outer proof (`outer_proof.json`).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct OuterProof {
-    pub backend:       String,
-    pub max_inputs:    usize,
-    pub proof:         OuterProofPoints,
+    pub backend: String,
+    pub max_inputs: usize,
+    pub proof: OuterProofPoints,
     /// In-circuit Poseidon hash of the inner VK, 32-byte BE Fr hex.
     pub inner_vk_hash: String,
     /// The `MAX_INPUTS`-length public-input vector, each a 32-byte BE Fr hex.
-    pub inputs:        Vec<String>,
+    pub inputs: Vec<String>,
 }
 
 impl OuterProof {
@@ -123,9 +123,7 @@ impl OuterProof {
             .commitments_uncompressed
             .first()
             .map(String::as_str)
-            .ok_or_else(|| {
-                OuterParseError::Shape("proof has no commitments_uncompressed".into())
-            })
+            .ok_or_else(|| OuterParseError::Shape("proof has no commitments_uncompressed".into()))
     }
 }
 

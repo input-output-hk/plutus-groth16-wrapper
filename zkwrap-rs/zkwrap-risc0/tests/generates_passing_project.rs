@@ -16,8 +16,7 @@ use zkwrap_risc0::Risc0Codegen;
 // --- spike fixture values not present in outer_proof.json (RISC Zero guest
 //     output + off-chain cross-checks).
 /// `ExpandMsgXmd_SHA256(commitment_uncompressed) mod r`, from gnark.
-const EXPECTED_COMMIT_FR: &str =
-    "6385ca90542285a400c194342aaab4263f8b62b55282a58b9e6b482218462dc8";
+const EXPECTED_COMMIT_FR: &str = "6385ca90542285a400c194342aaab4263f8b62b55282a58b9e6b482218462dc8";
 /// Canonical compressed (48-byte) form of the commitment — the value the
 /// on-chain `compress_from_uncompressed` helper must reproduce. (Not parsed
 /// from the proof: codegen only needs the uncompressed bytes.)
@@ -31,11 +30,12 @@ const JOURNAL_TAMPERED: &str = "8601000000000000";
 const EXPECTED_CLAIM_DIGEST: &str =
     "7cad906649785c4893e576973582aaff214f5ad2344e4f7ef575e3c6fc1ba432";
 /// SystemState{pc:0, merkle_root:ZERO}.digest() — cleanly-halted constant.
-const POST_STATE_DIGEST: &str =
-    "a3acc27117418996340b84e5a90f3ef4c49d22c79e44aad822ec9c313e1eb8e2";
+const POST_STATE_DIGEST: &str = "a3acc27117418996340b84e5a90f3ef4c49d22c79e44aad822ec9c313e1eb8e2";
 
 fn repo_path(rel: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel)
 }
 
 fn read(rel: &str) -> String {
@@ -44,7 +44,12 @@ fn read(rel: &str) -> String {
 
 // TODO: copy all necessary testdata inside the crate
 fn risc0_fixture_hex(name: &str) -> String {
-    hex::encode(std::fs::read(repo_path(&format!("experiments/risc0-hello-world/fixtures/{name}"))).unwrap())
+    hex::encode(
+        std::fs::read(repo_path(&format!(
+            "experiments/risc0-hello-world/fixtures/{name}"
+        )))
+        .unwrap(),
+    )
 }
 
 /// `#"…"` ByteArray literal.
@@ -163,17 +168,29 @@ fn composer_emits_aiken_check_passing_project() {
     .unwrap();
 
     // Generation sanity: required files present, no unrendered template holes.
-    let validator = project.get("validators/verify.ak").expect("validators/verify.ak");
-    let layer1 = project.get("lib/zkwrap/groth16.ak").expect("lib/zkwrap/groth16.ak");
-    let layer2 = project.get("lib/zkwrap/risc0.ak").expect("lib/zkwrap/risc0.ak");
-    for (name, src) in [("groth16", layer1), ("risc0", layer2), ("verify", validator)] {
-        assert!(!src.contains("{{") && !src.contains("{%"), "{name}.ak has unrendered holes");
+    let validator = project
+        .get("validators/verify.ak")
+        .expect("validators/verify.ak");
+    let layer1 = project
+        .get("lib/zkwrap/groth16.ak")
+        .expect("lib/zkwrap/groth16.ak");
+    let layer2 = project
+        .get("lib/zkwrap/risc0.ak")
+        .expect("lib/zkwrap/risc0.ak");
+    for (name, src) in [
+        ("groth16", layer1),
+        ("risc0", layer2),
+        ("verify", validator),
+    ] {
+        assert!(
+            !src.contains("{{") && !src.contains("{%"),
+            "{name}.ak has unrendered holes"
+        );
     }
     assert!(validator.contains("const inner_vk_hash: Int = 0x0c42ca6b"));
 
     // Materialize under the (gitignored) target dir for inspection + aiken check.
-    let out_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../target/generated/risc0-verifier");
+    let out_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/generated/risc0-verifier");
     let _ = std::fs::remove_dir_all(&out_dir);
     project.write_to(&out_dir).unwrap();
     eprintln!("generated project at {}", out_dir.display());

@@ -21,11 +21,11 @@ pub struct Bn254G2(pub [u8; 128]);
 /// leaking memory or a compile-time registry of every known system ID.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalInnerProof {
-    pub vk:            Bn254Vk,
-    pub proof:         Bn254Proof,
+    pub vk: Bn254Vk,
+    pub proof: Bn254Proof,
     /// Real inputs only, length == n_real. No padding.
     pub public_inputs: Vec<Bn254Fr>,
-    pub system_id:     Cow<'static, str>,
+    pub system_id: Cow<'static, str>,
 }
 
 impl CanonicalInnerProof {
@@ -99,8 +99,12 @@ fn extract_json_uint(json: &str, key: &str) -> Result<usize, ParseError> {
     let needle = format!(r#""{key}":"#);
     let start = json.find(&needle).ok_or(ParseError::InvalidMeta)? + needle.len();
     let tail = &json[start..];
-    let end = tail.find(|c: char| !c.is_ascii_digit()).unwrap_or(tail.len());
-    tail[..end].parse::<usize>().map_err(|_| ParseError::InvalidMeta)
+    let end = tail
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(tail.len());
+    tail[..end]
+        .parse::<usize>()
+        .map_err(|_| ParseError::InvalidMeta)
 }
 
 /// Error type for canonical proof deserialization.
@@ -117,7 +121,7 @@ pub enum ParseError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bn254Vk {
     pub alpha_g1: Bn254G1,
-    pub beta_g2:  Bn254G2,
+    pub beta_g2: Bn254G2,
     pub gamma_g2: Bn254G2,
     pub delta_g2: Bn254G2,
     /// IC[0] is the constant term; IC[1..] are per-input. len() == n_real + 1.
@@ -144,7 +148,7 @@ impl Bn254Vk {
             return Err(ParseError::TooShort);
         }
         let alpha_g1 = Bn254G1(data[0..64].try_into().unwrap());
-        let beta_g2  = Bn254G2(data[64..192].try_into().unwrap());
+        let beta_g2 = Bn254G2(data[64..192].try_into().unwrap());
         let gamma_g2 = Bn254G2(data[192..320].try_into().unwrap());
         let delta_g2 = Bn254G2(data[320..448].try_into().unwrap());
         let n_ic = u32::from_be_bytes(data[448..452].try_into().unwrap()) as usize;
@@ -156,15 +160,21 @@ impl Bn254Vk {
             let s = 452 + i * 64;
             ic.push(Bn254G1(data[s..s + 64].try_into().unwrap()));
         }
-        Ok(Bn254Vk { alpha_g1, beta_g2, gamma_g2, delta_g2, ic })
+        Ok(Bn254Vk {
+            alpha_g1,
+            beta_g2,
+            gamma_g2,
+            delta_g2,
+            ic,
+        })
     }
 }
 
 /// BN254 Groth16 proof. proof.bin layout: ar[0:64] | bs[64:192] | krs[192:256].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bn254Proof {
-    pub ar:  Bn254G1,
-    pub bs:  Bn254G2,
+    pub ar: Bn254G1,
+    pub bs: Bn254G2,
     pub krs: Bn254G1,
 }
 
@@ -179,8 +189,8 @@ impl Bn254Proof {
 
     pub fn from_bytes(data: &[u8; 256]) -> Self {
         Bn254Proof {
-            ar:  Bn254G1(data[0..64].try_into().unwrap()),
-            bs:  Bn254G2(data[64..192].try_into().unwrap()),
+            ar: Bn254G1(data[0..64].try_into().unwrap()),
+            bs: Bn254G2(data[64..192].try_into().unwrap()),
             krs: Bn254G1(data[192..256].try_into().unwrap()),
         }
     }
@@ -193,30 +203,35 @@ mod tests {
     fn make_test_proof(n_real: usize) -> CanonicalInnerProof {
         let vk = Bn254Vk {
             alpha_g1: Bn254G1([0xAAu8; 64]),
-            beta_g2:  Bn254G2([0xBBu8; 128]),
+            beta_g2: Bn254G2([0xBBu8; 128]),
             gamma_g2: Bn254G2([0xCCu8; 128]),
             delta_g2: Bn254G2([0xDDu8; 128]),
             ic: (0..=n_real).map(|i| Bn254G1([i as u8; 64])).collect(),
         };
         let proof = Bn254Proof {
-            ar:  Bn254G1([0x11u8; 64]),
-            bs:  Bn254G2([0x22u8; 128]),
+            ar: Bn254G1([0x11u8; 64]),
+            bs: Bn254G2([0x22u8; 128]),
             krs: Bn254G1([0x33u8; 64]),
         };
         let public_inputs = (0..n_real).map(|i| Bn254Fr([i as u8; 32])).collect();
-        CanonicalInnerProof { vk, proof, public_inputs, system_id: std::borrow::Cow::Borrowed("risc0-v3") }
+        CanonicalInnerProof {
+            vk,
+            proof,
+            public_inputs,
+            system_id: std::borrow::Cow::Borrowed("risc0-v3"),
+        }
     }
 
     #[test]
     fn from_parts_rejects_ic_mismatch() {
         let p = make_test_proof(2); // vk has 3 IC points (ic[0..=2]), n_real=2
-        // Give the vk an extra IC point so n_ic=4 but meta still says n_real=2 → mismatch
+                                    // Give the vk an extra IC point so n_ic=4 but meta still says n_real=2 → mismatch
         let mut bad_vk = p.vk.clone();
         bad_vk.ic.push(Bn254G1([0xFFu8; 64]));
-        let vk_bytes    = bad_vk.to_bytes();
+        let vk_bytes = bad_vk.to_bytes();
         let proof_bytes = p.proof_bytes();
-        let pi_bytes    = p.public_inputs_bytes();
-        let meta        = p.meta_json(); // n_real=2, but vk.ic.len()==4 ≠ 3
+        let pi_bytes = p.public_inputs_bytes();
+        let meta = p.meta_json(); // n_real=2, but vk.ic.len()==4 ≠ 3
         let result = CanonicalInnerProof::from_parts(&vk_bytes, &proof_bytes, &pi_bytes, &meta);
         assert_eq!(result, Err(ParseError::IcLenMismatch));
     }
@@ -224,17 +239,16 @@ mod tests {
     #[test]
     fn round_trip() {
         let original = make_test_proof(2);
-        let vk_bytes    = original.vk_bytes();
+        let vk_bytes = original.vk_bytes();
         let proof_bytes = original.proof_bytes();
-        let pi_bytes    = original.public_inputs_bytes();
-        let meta        = original.meta_json();
+        let pi_bytes = original.public_inputs_bytes();
+        let meta = original.meta_json();
 
-        let recovered = CanonicalInnerProof::from_parts(
-            &vk_bytes, &proof_bytes, &pi_bytes, &meta,
-        ).unwrap();
+        let recovered =
+            CanonicalInnerProof::from_parts(&vk_bytes, &proof_bytes, &pi_bytes, &meta).unwrap();
 
-        assert_eq!(recovered.vk,            original.vk);
-        assert_eq!(recovered.proof,         original.proof);
+        assert_eq!(recovered.vk, original.vk);
+        assert_eq!(recovered.proof, original.proof);
         assert_eq!(recovered.public_inputs, original.public_inputs);
         assert_eq!(recovered.system_id.as_ref(), original.system_id.as_ref());
     }
@@ -248,14 +262,14 @@ mod tests {
     #[test]
     fn vk_bytes_layout() {
         let alpha = Bn254G1([0x11u8; 64]);
-        let beta  = Bn254G2([0x22u8; 128]);
+        let beta = Bn254G2([0x22u8; 128]);
         let gamma = Bn254G2([0x33u8; 128]);
         let delta = Bn254G2([0x44u8; 128]);
-        let ic0   = Bn254G1([0x55u8; 64]);
-        let ic1   = Bn254G1([0x66u8; 64]);
+        let ic0 = Bn254G1([0x55u8; 64]);
+        let ic1 = Bn254G1([0x66u8; 64]);
         let vk = Bn254Vk {
             alpha_g1: alpha.clone(),
-            beta_g2:  beta.clone(),
+            beta_g2: beta.clone(),
             gamma_g2: gamma.clone(),
             delta_g2: delta.clone(),
             ic: vec![ic0.clone(), ic1.clone()],
@@ -263,8 +277,8 @@ mod tests {
         let enc = vk.to_bytes();
         // 452-byte fixed header + 2 × 64-byte IC points
         assert_eq!(enc.len(), 452 + 2 * 64);
-        assert_eq!(&enc[0..64],    &alpha.0[..]);
-        assert_eq!(&enc[64..192],  &beta.0[..]);
+        assert_eq!(&enc[0..64], &alpha.0[..]);
+        assert_eq!(&enc[64..192], &beta.0[..]);
         assert_eq!(&enc[192..320], &gamma.0[..]);
         assert_eq!(&enc[320..448], &delta.0[..]);
         assert_eq!(&enc[448..452], &2u32.to_be_bytes());
@@ -274,19 +288,18 @@ mod tests {
 
     #[test]
     fn proof_bytes_layout() {
-        let ar_bytes  = [0x11u8; 64];
-        let bs_bytes  = [0x22u8; 128];
+        let ar_bytes = [0x11u8; 64];
+        let bs_bytes = [0x22u8; 128];
         let krs_bytes = [0x33u8; 64];
         let proof = Bn254Proof {
-            ar:  Bn254G1(ar_bytes),
-            bs:  Bn254G2(bs_bytes),
+            ar: Bn254G1(ar_bytes),
+            bs: Bn254G2(bs_bytes),
             krs: Bn254G1(krs_bytes),
         };
         let enc = proof.to_bytes();
         assert_eq!(enc.len(), 256);
-        assert_eq!(&enc[0..64],    &ar_bytes[..]);
-        assert_eq!(&enc[64..192],  &bs_bytes[..]);
+        assert_eq!(&enc[0..64], &ar_bytes[..]);
+        assert_eq!(&enc[64..192], &bs_bytes[..]);
         assert_eq!(&enc[192..256], &krs_bytes[..]);
     }
-
 }

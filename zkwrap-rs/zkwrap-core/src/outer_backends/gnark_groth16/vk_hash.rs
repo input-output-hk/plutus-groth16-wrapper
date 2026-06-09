@@ -130,8 +130,8 @@ fn parse_g2(p: &Bn254G2) -> G2Affine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::test_vectors::load_vectors;
+    use super::*;
 
     fn fp_from_hex(h: &str) -> Fq {
         Fq::from_be_bytes_mod_order(&hex::decode(h).unwrap())
@@ -170,8 +170,18 @@ mod tests {
         let vk = load_vk();
         let gamma_neg = -parse_g2(&vk.gamma_g2);
         let delta_neg = -parse_g2(&vk.delta_g2);
-        let g = [&gamma_neg.x.c0, &gamma_neg.x.c1, &gamma_neg.y.c0, &gamma_neg.y.c1];
-        let d = [&delta_neg.x.c0, &delta_neg.x.c1, &delta_neg.y.c0, &delta_neg.y.c1];
+        let g = [
+            &gamma_neg.x.c0,
+            &gamma_neg.x.c1,
+            &gamma_neg.y.c0,
+            &gamma_neg.y.c1,
+        ];
+        let d = [
+            &delta_neg.x.c0,
+            &delta_neg.x.c1,
+            &delta_neg.y.c0,
+            &delta_neg.y.c1,
+        ];
         for (i, fp) in g.iter().enumerate() {
             assert_eq!(fp_to_hex(fp), v.vk.gamma_neg[i], "gamma_neg fp {i}");
         }

@@ -173,8 +173,8 @@ impl MerkleDamgardHasher {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::test_vectors::load_vectors;
+    use super::*;
 
     fn fr_from_hex(h: &str) -> Fr {
         let bytes = hex::decode(h).unwrap();
@@ -200,8 +200,16 @@ mod tests {
         for (i, kat) in v.perm_kats.iter().enumerate() {
             let mut state = [fr_from_hex(&kat.r#in[0]), fr_from_hex(&kat.r#in[1])];
             permutation(&mut state);
-            assert_eq!(fr_to_be_bytes(&state[0]), hex32(&kat.out[0]), "perm {i} out0");
-            assert_eq!(fr_to_be_bytes(&state[1]), hex32(&kat.out[1]), "perm {i} out1");
+            assert_eq!(
+                fr_to_be_bytes(&state[0]),
+                hex32(&kat.out[0]),
+                "perm {i} out0"
+            );
+            assert_eq!(
+                fr_to_be_bytes(&state[1]),
+                hex32(&kat.out[1]),
+                "perm {i} out1"
+            );
         }
     }
 

@@ -13,10 +13,10 @@ import (
 
 // File names within a setup-dir bundle (docs/schemas/outer-proof-artifacts.md).
 const (
-	FilePK    = "outer_pk.bin"
-	FileVK    = "outer_vk.json"
-	FileCircuit    = "circuit.r1cs"
-	FileProof = "outer_proof.json"
+	FilePK      = "outer_pk.bin"
+	FileVK      = "outer_vk.json"
+	FileCircuit = "circuit.r1cs"
+	FileProof   = "outer_proof.json"
 )
 
 // WriteSetupBundle writes outer_pk.bin (gnark native binary), outer_vk.json

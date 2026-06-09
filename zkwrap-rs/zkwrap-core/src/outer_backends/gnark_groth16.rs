@@ -20,7 +20,13 @@ const MODULE_NAME: &str = "groth16";
 
 /// Proof-side parameters forwarded into `groth16.verify` ahead of
 /// `inner_vk_hash` and the inputs list (the outer-layer ABI; see [`crate::codegen`]).
-const PROOF_PARAMS: &[&str] = &["pi_a", "pi_b", "pi_c", "commitment_uncompressed", "commitment_pok"];
+const PROOF_PARAMS: &[&str] = &[
+    "pi_a",
+    "pi_b",
+    "pi_c",
+    "commitment_uncompressed",
+    "commitment_pok",
+];
 
 /// The gnark Groth16/BLS12-381 outer backend.
 pub struct Groth16Backend;
@@ -69,7 +75,10 @@ impl OuterCodegen for Groth16Backend {
                 ck_g_sigma_neg => ck.g_sigma_neg,
             })
             .map_err(|e| CodegenError::Render(e.to_string()))?;
-        Ok(OuterWiring { source, max_inputs: vk.max_inputs })
+        Ok(OuterWiring {
+            source,
+            max_inputs: vk.max_inputs,
+        })
     }
 }
 

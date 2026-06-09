@@ -44,7 +44,7 @@ func setG2FromHex(p *bls12381.G2Affine, field, s string) error {
 }
 
 // g1HexUncompressed serializes a G1 point as the 96-byte gnark RawBytes form
-// (x_be || y_be, top 3 bits of byte 0 = 0b000 for a finite point). 
+// (x_be || y_be, top 3 bits of byte 0 = 0b000 for a finite point).
 func g1HexUncompressed(p bls12381.G1Affine) string {
 	b := p.RawBytes()
 	return hex.EncodeToString(b[:])
