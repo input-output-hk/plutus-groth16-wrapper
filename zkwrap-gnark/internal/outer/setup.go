@@ -96,7 +96,7 @@ func ReadSetupBundle(dir string) (groth16.ProvingKey, *bls12381groth16.Verifying
 	if err != nil {
 		return nil, nil, nil, 0, fmt.Errorf("open %s: %w", FilePK, err)
 	}
-	if _, err := pk.ReadFrom(pkFile); err != nil {
+	if _, err := pk.UnsafeReadFrom(pkFile); err != nil {
 		_ = pkFile.Close()
 		return nil, nil, nil, 0, fmt.Errorf("read %s: %w", FilePK, err)
 	}

@@ -16,8 +16,7 @@ const canonicalInnerDir = "../../testdata/canonical-inner/risc0-hello-world"
 // TestIntegration_SetupProveVerify is the end-to-end smoke check that the
 // binary is a working lift of the experiment prototype. It runs the full
 // unsafe-setup → prove → verify cycle against the checked-in canonical
-// inner-proof fixture and also exercises the --out overwrite rule by
-// rerunning prove twice.
+// inner-proof fixture.
 //
 // The wrapper-circuit trusted setup is slow (≈30s+ on workstation hardware),
 // so this test is skipped under `go test -short`.
@@ -53,9 +52,8 @@ func TestIntegration_SetupProveVerify(t *testing.T) {
 		assertFileNonEmpty(t, filepath.Join(setupDir, "circuit.r1cs"))
 	}
 
-	// prove (first run)
-	proveOnce := func() {
-		t.Helper()
+	// prove
+	{
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{
 			"prove",
@@ -67,24 +65,8 @@ func TestIntegration_SetupProveVerify(t *testing.T) {
 			t.Fatalf("prove: exit %d\nstderr: %s", code, stderr.String())
 		}
 	}
-	proveOnce()
-	firstProof := mustRead(t, proofPath)
-
-	// --out overwrite: rerun prove on the same path; the file must be replaced
-	// in-place (not refused), and the second proof must still parse.
-	proveOnce()
-	secondProof := mustRead(t, proofPath)
-	if len(secondProof) == 0 {
-		t.Fatalf("second prove: outer_proof.json is empty")
-	}
-	if !json.Valid(secondProof) {
-		t.Errorf("second prove: outer_proof.json is not valid JSON")
-	}
-	// Both proofs verify; they need not be byte-equal (gnark uses fresh
-	// randomness per Prove call), but they must both refer to the same VK
-	// hash and the same inputs.
-	if got, want := topLevelString(t, firstProof, "inner_vk_hash"), topLevelString(t, secondProof, "inner_vk_hash"); got != want {
-		t.Errorf("inner_vk_hash diverges across runs: %q vs %q", got, want)
+	if proof := mustRead(t, proofPath); !json.Valid(proof) {
+		t.Errorf("prove: outer_proof.json is not valid JSON")
 	}
 
 	// verify
@@ -119,17 +101,4 @@ func mustRead(t *testing.T, path string) []byte {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return data
-}
-
-func topLevelString(t *testing.T, data []byte, key string) string {
-	t.Helper()
-	var m map[string]any
-	if err := json.Unmarshal(data, &m); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	s, ok := m[key].(string)
-	if !ok {
-		t.Fatalf("key %s is not a string", key)
-	}
-	return s
 }

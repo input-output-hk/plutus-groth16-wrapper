@@ -26,7 +26,9 @@ jobs:
           go-version-file: zkwrap-gnark/go.mod
           cache-dependency-path: zkwrap-gnark/go.sum
       - name: Test (full — includes trusted setup, prove, verify)
-        run: go test ./...
+        # The end-to-end test (setup + recursive proof + verify) is heavy:
+        # ~6-7min on a workstation and slower on hosted runners.
+        run: go test -timeout 30m ./...
 
   rust-release:
     name: Rust release tests
