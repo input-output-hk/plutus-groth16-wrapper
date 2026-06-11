@@ -4,11 +4,13 @@
 //!   [`zkwrap_core::InnerCodegen`] ([`Risc0Codegen`]), turning the canonical
 //!   inner proof's `meta.json.codegen` section into the wiring the Composer
 //!   bakes into `validators/verify.ak`.
-//! - `canonicalize` (Phase 4, not yet implemented) — the serializer half:
-//!   native RISC Zero receipt → canonical inner proof + `meta.json`.
+//! - [`canonicalize`] — the serializer half: native RISC Zero `Receipt` →
+//!   canonical inner proof + `meta.json` (the bundle `zkwrap-gnark` consumes).
 
+pub mod canonicalize;
 pub mod codegen;
 
+pub use canonicalize::{canonicalize, Canonicalized};
 pub use codegen::Risc0Codegen;
 
 /// `system_id` matching the canonical inner proof's `meta.json`. Shared by both
