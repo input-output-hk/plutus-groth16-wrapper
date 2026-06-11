@@ -2,7 +2,7 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 2 complete. Phase 3 next. See [journal.md](journal.md) for latest status.
+> **Current phase:** Phase 3 complete (Aiken codegen — the Composer emits a project that `aiken check`s green). Phase 4 in progress (RISC Zero end-to-end): both plugin halves landed — `canonicalize` (Receipt → canonical inner proof) and `Risc0Codegen`. Next: wire the full `Receipt → prove → validator → aiken check` pipeline, then the preview-testnet submission. See [journal.md](journal.md) for latest status.
 > Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)

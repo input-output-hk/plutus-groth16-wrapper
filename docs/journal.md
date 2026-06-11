@@ -20,6 +20,47 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-11 — Phase 4: RISC Zero `canonicalize` + shared `fixtures/` reorg
+
+**`canonicalize` — the plugin's serializer half.** Added `zkwrap_risc0::canonicalize`:
+native RISC Zero `Receipt` → canonical inner-proof bundle, I/O-free, with a
+`Canonicalized::write_to` that persists `vk.bin`/`proof.bin`/`public_inputs.bin`/`meta.json`.
+It `verify`s the receipt against `image_id` first, takes the 256-byte seal as the proof,
+decodes the fixed risc0 Groth16 VK through ark into the canonical layout, and rebuilds the
+5 BN254 public inputs (split-digest of `control_root` and `claim_digest`, plus
+`Fr(reverse(bn254_control_id))`). The per-guest `codegen` section rides alongside as a field
+of `Canonicalized`, *not* inside `CanonicalInnerProof` — the latter stays the pure,
+system-agnostic crypto contract (ADR-0007). An oracle test canonicalizes the committed
+hello-world receipt and asserts byte-equality with both the committed bundle and the Go
+`gen-testdata` output. The risc0 stack is an unconditional dep (Linux-only C++ kernels;
+tests run under WSL).
+
+**Shared `fixtures/` reorg.** `zkwrap-gnark/testdata/` had quietly become a cross-language
+fixture store — read by both Go and Rust, and reached into from `experiments/` by the new
+`canonicalize` test. Lifted it to a repo-root `fixtures/` tree organized by domain
+(`risc0-hello-world/`, `canonical-inner/`, `groth16-setup/`, `groth16-outer-proof.json`) and
+copied the risc0 raw artifacts in so the shipped crates stop reaching into `experiments/`.
+Repointed every Go/Rust reader and the `gen-testdata` defaults, moved the gitignore rule, and
+fixed a stale `dump_vectors_test` output path. The Poseidon2 KAT vectors stay embedded in
+`zkwrap-core` (compile-time unit-test oracle, not a runtime fixture). Verified: full Rust
+workspace + Go green (incl. the 239 s setup→prove→verify integration); `gen-testdata`
+reproduces the bundle byte-for-byte.
+
+Links:
+- `zkwrap-rs/zkwrap-risc0/src/canonicalize.rs`, `fixtures/README.md`
+- `docs/schemas/canonical-inner-proof.md`, ADR-0007
+
+## 2026-06-10 — Prover invocation model (preliminary ADR-0008)
+
+Wrote a **preliminary** ADR-0008 to capture a constraint before it bites: loading the ~1 GB
+proving key from disk dominates wall-clock (~40 s, vs ~7 s for proving itself), so a
+long-lived prover *service* is the likely target. The sketch keeps a transport-neutral
+serialization (the canonical inner bundle) behind a `Prover` abstraction — `CliProver` now,
+`ServiceProver` (RPC/HTTP) later — so the disk-bound path can be swapped without touching
+callers. Flagged explicitly as provisional (the `zkwrap-prover` driver-crate placement and the
+service protocol are open). This is what shaped `canonicalize` into an I/O-free core plus a thin
+`write_to`, so a host can wrap in-memory without staging to disk.
+
 ## 2026-06-02 — Rust `InnerVKHash` cross-check
 
 Added a pure-Rust Poseidon2-MD/BLS12-381 + `InnerVKHash` reimplementation in
