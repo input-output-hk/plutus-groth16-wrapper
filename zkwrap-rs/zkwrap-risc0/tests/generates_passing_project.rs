@@ -33,14 +33,8 @@ fn read(rel: &str) -> String {
     std::fs::read_to_string(repo_path(rel)).unwrap()
 }
 
-// TODO: copy all necessary testdata inside the crate
 fn risc0_fixture_hex(name: &str) -> String {
-    hex::encode(
-        std::fs::read(repo_path(&format!(
-            "experiments/risc0-hello-world/fixtures/{name}"
-        )))
-        .unwrap(),
-    )
+    hex::encode(std::fs::read(repo_path(&format!("fixtures/risc0-hello-world/{name}"))).unwrap())
 }
 
 /// `#"…"` ByteArray literal.
@@ -125,9 +119,8 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
 
 #[test]
 fn composer_emits_aiken_check_passing_project() {
-    let vk_json = read("zkwrap-gnark/testdata/groth16-setup/outer_vk.json");
-    let proof =
-        OuterProof::from_json(&read("zkwrap-gnark/testdata/groth16-outer-proof.json")).unwrap();
+    let vk_json = read("fixtures/groth16-setup/outer_vk.json");
+    let proof = OuterProof::from_json(&read("fixtures/groth16-outer-proof.json")).unwrap();
 
     let codegen = serde_json::json!({
         "image_id": risc0_fixture_hex("image_id.bin"),

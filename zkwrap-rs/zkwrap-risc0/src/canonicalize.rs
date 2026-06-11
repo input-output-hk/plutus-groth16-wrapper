@@ -224,8 +224,8 @@ mod tests {
         std::fs::read(repo_path(rel)).unwrap()
     }
 
-    const FIX: &str = "experiments/risc0-hello-world/fixtures";
-    const CANON: &str = "zkwrap-gnark/testdata/canonical-inner/risc0-hello-world";
+    const FIX: &str = "fixtures/risc0-hello-world";
+    const CANON: &str = "fixtures/canonical-inner/risc0-hello-world";
 
     /// Oracle test: canonicalizing the committed hello-world receipt must
     /// reproduce the committed canonical bundle byte-for-byte (vk/proof/inputs),

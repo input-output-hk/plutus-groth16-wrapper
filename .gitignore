@@ -47,5 +47,5 @@ docs/tmp
 # Trusted-setup artifacts under groth16-setup/ are bulky (outer_pk.bin ~1 GB,
 # circuit.r1cs ~70 MB) and regenerated locally — ignore everything there EXCEPT
 # the small outer_vk.json, which is committed as a test fixture.
-zkwrap-gnark/testdata/groth16-setup/*
-!zkwrap-gnark/testdata/groth16-setup/outer_vk.json
+fixtures/groth16-setup/*
+!fixtures/groth16-setup/outer_vk.json

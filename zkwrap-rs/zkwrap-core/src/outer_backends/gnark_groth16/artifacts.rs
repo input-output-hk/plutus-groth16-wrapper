@@ -157,15 +157,11 @@ mod tests {
     }
 
     fn vk_json() -> String {
-        std::fs::read_to_string(repo_path(
-            "zkwrap-gnark/testdata/groth16-setup/outer_vk.json",
-        ))
-        .unwrap()
+        std::fs::read_to_string(repo_path("fixtures/groth16-setup/outer_vk.json")).unwrap()
     }
 
     fn proof_json() -> String {
-        std::fs::read_to_string(repo_path("zkwrap-gnark/testdata/groth16-outer-proof.json"))
-            .unwrap()
+        std::fs::read_to_string(repo_path("fixtures/groth16-outer-proof.json")).unwrap()
     }
 
     #[test]

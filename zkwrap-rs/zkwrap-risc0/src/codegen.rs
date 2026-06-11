@@ -108,10 +108,7 @@ mod tests {
 
     fn risc0_fixture_hex(name: &str) -> String {
         hex::encode(
-            std::fs::read(repo_path(&format!(
-                "experiments/risc0-hello-world/fixtures/{name}"
-            )))
-            .unwrap(),
+            std::fs::read(repo_path(&format!("fixtures/risc0-hello-world/{name}"))).unwrap(),
         )
     }
 
@@ -149,8 +146,7 @@ mod tests {
     fn baked_inputs_match_outer_proof() {
         let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
         let proof = OuterProof::from_json(
-            &std::fs::read_to_string(repo_path("zkwrap-gnark/testdata/groth16-outer-proof.json"))
-                .unwrap(),
+            &std::fs::read_to_string(repo_path("fixtures/groth16-outer-proof.json")).unwrap(),
         )
         .unwrap();
 

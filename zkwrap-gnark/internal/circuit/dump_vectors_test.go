@@ -30,8 +30,8 @@ import (
 var dumpVectors = flag.Bool("dump-vectors", false, "regenerate the Rust InnerVKHash test-vector fixture")
 
 const (
-	canonicalInnerDir = "../../testdata/canonical-inner/risc0-hello-world"
-	fixtureOut        = "../../../zkwrap-rs/zkwrap-core/testdata/inner_vk_hash_vectors.json"
+	canonicalInnerDir = "../../../fixtures/canonical-inner/risc0-hello-world"
+	fixtureOut        = "../../../zkwrap-rs/zkwrap-core/src/outer_backends/gnark_groth16/vk_hash/inner_vk_hash_vectors.json"
 	maxInputs         = 8
 )
 

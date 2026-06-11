@@ -89,7 +89,7 @@ mod tests {
     fn fixture_vk_json() -> String {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("zkwrap-gnark/testdata/groth16-setup/outer_vk.json");
+            .join("fixtures/groth16-setup/outer_vk.json");
         std::fs::read_to_string(path).unwrap()
     }
 
