@@ -14,32 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  # Path-filter once, then gate the language jobs on the result. Keeping this in a
-  # single workflow lets `ci-gate` be the one required status check: a job that is
-  # skipped (because its area didn't change) does not block merge, but a failure does.
-  changes:
-    name: Detect changed areas
-    runs-on: ubuntu-latest
-    outputs:
-      rust: ${{ steps.filter.outputs.rust }}
-      go: ${{ steps.filter.outputs.go }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            rust:
-              - 'zkwrap-rs/**'
-              - '.github/workflows/ci.yml'
-            go:
-              - 'zkwrap-gnark/**'
-              - '.github/workflows/ci.yml'
-
   rust:
     name: Rust (fmt, clippy, test)
-    needs: changes
-    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -64,8 +40,6 @@ jobs:
 
   go:
     name: Go (gofmt, vet, test -short)
-    needs: changes
-    if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -92,21 +66,3 @@ jobs:
       # runs nightly (.github/workflows/nightly.yml).
       - name: Test (short)
         run: go test -short ./...
-
-  ci-gate:
-    name: CI gate
-    needs: [changes, rust, go]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      # `needs.*.result` fans out over every job in `needs`, so adding a job
-      # there (and nowhere else) keeps this gate honest. Only `failure`/
-      # `cancelled` trips it — `skipped` (a path-filtered job that didn't run)
-      # and `success` are both fine, so an untouched area never blocks merge.
-      - name: Show job results
-        run: echo "changes=${{ needs.changes.result }} rust=${{ needs.rust.result }} go=${{ needs.go.result }}"
-      - name: Fail if any required job failed or was cancelled
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-        run: |
-          echo "::error::a required job failed or was cancelled"
-          exit 1

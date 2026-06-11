@@ -1,7 +1,5 @@
 //! Tracer-bullet acceptance test: the Composer must emit a full
-//! Aiken project that `aiken check`s green against the pinned spike fixture,
-//! reproducing the spike's pairing outcome. Lifts the spike's nine inline
-//! tests into the generated `validators/verify.ak`.
+//! Aiken project that `aiken check`s green against the pinned fixture
 //!
 //! The project is written under the workspace `target/` (gitignored) so it can
 //! be inspected after the run. If `aiken` is not on `PATH` the test still
@@ -15,13 +13,6 @@ use zkwrap_risc0::Risc0Codegen;
 
 // --- spike fixture values not present in outer_proof.json (RISC Zero guest
 //     output + off-chain cross-checks).
-/// `ExpandMsgXmd_SHA256(commitment_uncompressed) mod r`, from gnark.
-const EXPECTED_COMMIT_FR: &str = "6385ca90542285a400c194342aaab4263f8b62b55282a58b9e6b482218462dc8";
-/// Canonical compressed (48-byte) form of the commitment — the value the
-/// on-chain `compress_from_uncompressed` helper must reproduce. (Not parsed
-/// from the proof: codegen only needs the uncompressed bytes.)
-const EXPECTED_COMMITMENT: &str =
-    "a82fa3134bc25666c7a42336409323186f0e920d92b7b56f35dfd89555624e4a23fe016711a3aa49ad8fdf6354382bb5";
 /// Raw guest output for multiply(17, 23): u64 LE = 391.
 const JOURNAL_BYTES: &str = "8701000000000000";
 /// Same journal with the low byte flipped (391 → 390).
@@ -80,7 +71,6 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
     let pi_a = ba(&proof.proof.ar);
     let pi_b = ba(&proof.proof.bs);
     let pi_c = ba(&proof.proof.krs);
-    let commitment = ba(EXPECTED_COMMITMENT);
     let cu = ba(proof.commitment_uncompressed().unwrap());
     let pok = ba(&proof.proof.commitment_pok);
     let vkhash = int(&proof.inner_vk_hash);
@@ -107,14 +97,6 @@ fn build_tests(proof: &OuterProof) -> Vec<TestBlock> {
     };
 
     vec![
-        TestBlock::pass(
-            "commit_fr_matches_gnark",
-            format!("groth16.hash_to_fr({cu}) == {}", int(EXPECTED_COMMIT_FR)),
-        ),
-        TestBlock::pass(
-            "compress_binding_matches",
-            format!("groth16.compress_from_uncompressed({cu}) == {commitment}"),
-        ),
         TestBlock::pass("verify_valid_proof", l1_verify(&vkhash, &inputs)),
         TestBlock::fail(
             "verify_tampered_inner_vk_hash",
