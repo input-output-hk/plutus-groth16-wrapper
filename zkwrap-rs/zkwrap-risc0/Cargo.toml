@@ -8,3 +8,11 @@ license.workspace = true
 zkwrap-core = { path = "../zkwrap-core" }
 serde_json = "1"
 hex = "0.4"
+
+risc0-zkvm = "3.0.5"
+risc0-groth16 = "=3.0.4"
+risc0-circuit-recursion = "=4.0.4"
+ark-bn254 = "0.5"
+ark-ff = "0.5"
+ark-groth16 = "0.5"
+ark-serialize = "0.5"

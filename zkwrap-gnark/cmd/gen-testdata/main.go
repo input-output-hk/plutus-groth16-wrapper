@@ -1,12 +1,12 @@
-// Command gen-testdata regenerates checked-in test fixtures under testdata/
-// from upstream inputs in experiments/. Run this when the canonical
-// inner-proof schema changes or when refreshing the upstream RISC Zero
-// fixture.
+// Command gen-testdata regenerates the checked-in canonical inner-proof
+// fixture under fixtures/ from the committed RISC Zero source fixtures
+// (fixtures/risc0-hello-world). Run this when the canonical inner-proof
+// schema changes or when refreshing the upstream RISC Zero fixture.
 //
 // Usage (from the zkwrap-gnark module root):
 //
 //	go run ./cmd/gen-testdata
-//	go run ./cmd/gen-testdata --src ../experiments/risc0-hello-world/fixtures --dst ./testdata/canonical-inner/risc0-hello-world
+//	go run ./cmd/gen-testdata --src ../fixtures/risc0-hello-world --dst ../fixtures/canonical-inner/risc0-hello-world
 package main
 
 import (
@@ -29,8 +29,8 @@ import (
 )
 
 func main() {
-	src := flag.String("src", "../experiments/risc0-hello-world/fixtures", "RISC Zero fixture directory (source)")
-	dst := flag.String("dst", "./testdata/canonical-inner/risc0-hello-world", "canonical inner-proof output directory")
+	src := flag.String("src", "../fixtures/risc0-hello-world", "RISC Zero fixture directory (source)")
+	dst := flag.String("dst", "../fixtures/canonical-inner/risc0-hello-world", "canonical inner-proof output directory")
 	flag.Parse()
 
 	if err := convertRisc0ToCanonical(*src, *dst); err != nil {

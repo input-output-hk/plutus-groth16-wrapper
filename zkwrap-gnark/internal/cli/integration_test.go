@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// canonicalInnerDir is the checked-in canonical inner-proof testdata,
-// generated from experiments/risc0-hello-world/fixtures by
-// `go run ./cmd/gen-testdata`. Path is relative to this test file.
-const canonicalInnerDir = "../../testdata/canonical-inner/risc0-hello-world"
+// canonicalInnerDir is the checked-in canonical inner-proof fixture,
+// generated from fixtures/risc0-hello-world by `go run ./cmd/gen-testdata`.
+// Path is relative to this test file.
+const canonicalInnerDir = "../../../fixtures/canonical-inner/risc0-hello-world"
 
 // TestIntegration_SetupProveVerify is the end-to-end smoke check that the
 // binary is a working lift of the experiment prototype. It runs the full

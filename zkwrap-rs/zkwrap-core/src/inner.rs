@@ -53,6 +53,32 @@ impl CanonicalInnerProof {
         )
     }
 
+    /// Persist the bundle to `dir` (created if missing): `vk.bin`, `proof.bin`,
+    /// `public_inputs.bin`, and `meta.json`. `meta.json` carries `system_id` +
+    /// `n_real`, plus an optional system-specific `codegen` section (opaque to
+    /// the prover binary; consumed by the deploy-time Composer).
+    pub fn write_to(
+        &self,
+        dir: &std::path::Path,
+        codegen: Option<&serde_json::Value>,
+    ) -> std::io::Result<()> {
+        std::fs::create_dir_all(dir)?;
+        std::fs::write(dir.join("vk.bin"), self.vk_bytes())?;
+        std::fs::write(dir.join("proof.bin"), self.proof_bytes())?;
+        std::fs::write(dir.join("public_inputs.bin"), self.public_inputs_bytes())?;
+
+        let mut meta = serde_json::json!({
+            "system_id": self.system_id.as_ref(),
+            "n_real": self.public_inputs.len(),
+        });
+        if let Some(cg) = codegen {
+            meta["codegen"] = cg.clone();
+        }
+        let meta_str = serde_json::to_string_pretty(&meta).map_err(std::io::Error::other)?;
+        std::fs::write(dir.join("meta.json"), meta_str)?;
+        Ok(())
+    }
+
     pub fn from_parts(
         vk_bytes: &[u8],
         proof_bytes: &[u8; 256],
@@ -234,6 +260,33 @@ mod tests {
         let meta = p.meta_json(); // n_real=2, but vk.ic.len()==4 ≠ 3
         let result = CanonicalInnerProof::from_parts(&vk_bytes, &proof_bytes, &pi_bytes, &meta);
         assert_eq!(result, Err(ParseError::IcLenMismatch));
+    }
+
+    #[test]
+    fn write_to_persists_bundle_with_codegen() {
+        let p = make_test_proof(2);
+        let dir = std::env::temp_dir().join(format!("zkwrap_write_to_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let codegen = serde_json::json!({ "image_id": "deadbeef" });
+        p.write_to(&dir, Some(&codegen)).unwrap();
+
+        assert_eq!(std::fs::read(dir.join("vk.bin")).unwrap(), p.vk_bytes());
+        assert_eq!(
+            std::fs::read(dir.join("proof.bin")).unwrap(),
+            p.proof_bytes()
+        );
+        assert_eq!(
+            std::fs::read(dir.join("public_inputs.bin")).unwrap(),
+            p.public_inputs_bytes()
+        );
+        let meta: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("meta.json")).unwrap()).unwrap();
+        assert_eq!(meta["system_id"], "risc0-v3");
+        assert_eq!(meta["n_real"], 2);
+        assert_eq!(meta["codegen"]["image_id"], "deadbeef");
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

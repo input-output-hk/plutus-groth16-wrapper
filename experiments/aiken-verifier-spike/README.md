@@ -100,18 +100,18 @@ and CPU execution units are reported per test in the output.
 
 ## Regenerating the fixture
 
-The hard-coded constants come from `zkwrap-gnark/testdata/groth16-setup/outer_vk.json`
-and `zkwrap-gnark/testdata/groth16-outer-proof.json` (MAX_INPUTS = 8, RISC Zero
+The hard-coded constants come from `fixtures/groth16-setup/outer_vk.json`
+and `fixtures/groth16-outer-proof.json` (MAX_INPUTS = 8, RISC Zero
 canonical inner). To regenerate:
 
 ```bash
 cd zkwrap-gnark
 go build -o /tmp/zkwrap-gnark ./cmd/zkwrap-gnark
-/tmp/zkwrap-gnark unsafe-setup --max-inputs 8 --out testdata/groth16-setup
+/tmp/zkwrap-gnark unsafe-setup --max-inputs 8 --out ../fixtures/groth16-setup
 /tmp/zkwrap-gnark prove \
-  --inner testdata/canonical-inner/risc0-hello-world \
-  --setup testdata/groth16-setup \
-  --out testdata/groth16-outer-proof.json
+  --inner ../fixtures/canonical-inner/risc0-hello-world \
+  --setup ../fixtures/groth16-setup \
+  --out ../fixtures/groth16-outer-proof.json
 ```
 
 `commitment_uncompressed` is `proof.Commitments[0].Marshal()` from gnark — i.e. the
