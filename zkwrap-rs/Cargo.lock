@@ -4434,6 +4434,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "zkwrap-prover"
+version = "0.1.0"
+dependencies = [
+ "zkwrap-core",
+]
+
+[[package]]
 name = "zkwrap-risc0"
 version = "0.1.0"
 dependencies = [
