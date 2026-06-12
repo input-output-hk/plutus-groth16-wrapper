@@ -139,7 +139,7 @@ fn aiken_toml(project_name: &str) -> String {
 name = "{project_name}"
 version = "0.0.0"
 plutus = "v3"
-compiler = "1.1.19"
+compiler = "1.1.22"
 description = "Generated zkwrap outer-wrapper verifier."
 
 [[dependencies]]

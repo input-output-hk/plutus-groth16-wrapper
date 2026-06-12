@@ -34,29 +34,21 @@
 pub mod composer;
 
 use serde_json::Value;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CodegenError {
     /// A required field was missing or malformed in the meta.json `codegen` section.
+    #[error("meta.json codegen: {0}")]
     Meta(String),
     /// The backend's VK artifact (`outer_vk.json`) was malformed or did not
     /// match the selected backend.
+    #[error("vk artifact: {0}")]
     Artifact(String),
     /// Template rendering failed.
+    #[error("render: {0}")]
     Render(String),
 }
-
-impl std::fmt::Display for CodegenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CodegenError::Meta(s) => write!(f, "meta.json codegen: {s}"),
-            CodegenError::Artifact(s) => write!(f, "vk artifact: {s}"),
-            CodegenError::Render(s) => write!(f, "render: {s}"),
-        }
-    }
-}
-
-impl std::error::Error for CodegenError {}
 
 /// A redeemer-side parameter the generated entry point must accept and forward
 /// into an inner-layer call (e.g. RISC Zero's `journal_bytes`).

@@ -13,6 +13,8 @@
 use std::borrow::Cow;
 use std::path::Path;
 
+use thiserror::Error;
+
 use ark_bn254::{Bn254, Fq, G1Affine, G2Affine};
 use ark_ff::{BigInteger, PrimeField};
 use ark_serialize::CanonicalDeserialize;
@@ -44,33 +46,19 @@ impl Canonicalized {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CanonicalizeError {
-    /// The receipt failed `receipt.verify(image_id)`.
+    #[error("receipt verify: {0}")]
     Verify(String),
-    /// The receipt is not a Groth16-compressed receipt.
+    #[error("receipt is not Groth16-compressed")]
     NotGroth16,
-    /// The receipt's claim (or its post-state) is pruned/unavailable.
+    #[error("claim: {0}")]
     Claim(String),
-    /// The fixed RISC Zero Groth16 verifying key could not be decoded.
+    #[error("groth16 verifying key: {0}")]
     VerifyingKey(String),
-    /// The Groth16 seal was not the expected 256 bytes.
+    #[error("seal is {0} bytes, want 256")]
     Seal(usize),
 }
-
-impl std::fmt::Display for CanonicalizeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CanonicalizeError::Verify(s) => write!(f, "receipt verify: {s}"),
-            CanonicalizeError::NotGroth16 => write!(f, "receipt is not Groth16-compressed"),
-            CanonicalizeError::Claim(s) => write!(f, "claim: {s}"),
-            CanonicalizeError::VerifyingKey(s) => write!(f, "groth16 verifying key: {s}"),
-            CanonicalizeError::Seal(n) => write!(f, "seal is {n} bytes, want 256"),
-        }
-    }
-}
-
-impl std::error::Error for CanonicalizeError {}
 
 /// Verify a RISC Zero Groth16 `receipt` against `image_id` and convert it into
 /// the canonical inner-proof bundle (I/O-free; call [`Canonicalized::write_to`]

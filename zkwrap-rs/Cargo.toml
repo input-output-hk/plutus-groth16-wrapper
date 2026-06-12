@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "zkwrap-core",
+    "zkwrap-prover",
     "zkwrap-risc0",
     "zkwrap-sp1",
 ]
