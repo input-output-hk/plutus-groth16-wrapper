@@ -9,6 +9,7 @@
 //! matching what Cardano's `bls12_381_*_uncompress` builtins expect.
 
 use serde::Deserialize;
+use thiserror::Error;
 
 /// A Pedersen (Bowe–Gabizon) commitment verifying key: two compressed G2 points.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -127,22 +128,13 @@ impl OuterProof {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OuterParseError {
-    Json(serde_json::Error),
+    #[error("json: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("shape: {0}")]
     Shape(String),
 }
-
-impl std::fmt::Display for OuterParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OuterParseError::Json(e) => write!(f, "json: {e}"),
-            OuterParseError::Shape(s) => write!(f, "shape: {s}"),
-        }
-    }
-}
-
-impl std::error::Error for OuterParseError {}
 
 #[cfg(test)]
 mod tests {

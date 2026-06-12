@@ -18,6 +18,7 @@ pub use gnark_cli_prover::GnarkCliProver;
 
 use std::path::PathBuf;
 
+use thiserror::Error;
 use zkwrap_core::{CanonicalInnerProof, OuterParseError, OuterProof};
 
 /// Produces a BLS12-381 outer proof from a canonical inner proof. The trait
@@ -29,44 +30,17 @@ pub trait Prover {
 
 /// Why an outer-proof attempt failed. Shared across backends — the trait's
 /// error contract — though some variants are specific to the CLI backend.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ProveError {
-    /// Writing the bundle or reading the outer proof failed.
-    Io(std::io::Error),
-    /// The `zkwrap-gnark` binary could not be spawned (e.g. not found).
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("spawn {}: {source}", .bin.display())]
     Spawn {
         bin: PathBuf,
         source: std::io::Error,
     },
-    /// The prover ran but exited non-zero.
+    #[error("zkwrap-gnark prove failed (exit status {status:?}): {stderr}")]
     GnarkFailed { status: Option<i32>, stderr: String },
-    /// The prover's `outer_proof.json` could not be parsed.
-    Parse(OuterParseError),
-}
-
-impl std::fmt::Display for ProveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ProveError::Io(e) => write!(f, "io: {e}"),
-            ProveError::Spawn { bin, source } => {
-                write!(f, "spawn {}: {source}", bin.display())
-            }
-            ProveError::GnarkFailed { status, stderr } => match status {
-                Some(c) => write!(f, "zkwrap-gnark exited {c}: {stderr}"),
-                None => write!(f, "zkwrap-gnark killed by signal: {stderr}"),
-            },
-            ProveError::Parse(e) => write!(f, "parse outer proof: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for ProveError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ProveError::Io(e) => Some(e),
-            ProveError::Spawn { source, .. } => Some(source),
-            ProveError::Parse(e) => Some(e),
-            ProveError::GnarkFailed { .. } => None,
-        }
-    }
+    #[error("parse outer proof: {0}")]
+    Parse(#[from] OuterParseError),
 }
