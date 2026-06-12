@@ -10,7 +10,23 @@ all-features = true
 version = 2
 yanked = "deny"
 # Add advisory IDs here only with a justification comment if a fix is unavailable.
-ignore = []
+#
+# Each entry is a transitive dependency of arkworks (ark-groth16 / ark-relations /
+# ark-ff), pulled in for Groth16 verification. All three are already fixed in
+# arkworks 0.6 (paste/derivative dropped, tracing-subscriber bumped to 0.3), but
+# we cannot adopt 0.6: risc0-groth16 pins `ark-groth16 = "^0.5"` — true even of
+# its latest release (5.0.0-rc.1) — so Cargo is locked to the arkworks 0.5.x line,
+# whose newest releases still carry these crates. Exit condition is therefore a
+# risc0-groth16 release that migrates to arkworks 0.6.
+ignore = [
+    # tracing-subscriber 0.2.x: ANSI log poisoning. Pulled by ark-relations's
+    # `std` feature. We do not feed untrusted input through this logger.
+    "RUSTSEC-2025-0055",
+    # derivative: unmaintained (no vulnerability). Pulled by ark-crypto-primitives.
+    "RUSTSEC-2024-0388",
+    # paste: unmaintained (no vulnerability). Pulled by ark-ff.
+    "RUSTSEC-2024-0436",
+]
 
 [licenses]
 version = 2
