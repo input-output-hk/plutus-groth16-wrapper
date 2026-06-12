@@ -1,0 +1,22 @@
+[package]
+name = "risc0-aiken-groth16"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[features]
+# Proving is on by default so `cargo run --release` runs the full live flow.
+default = ["prove"]
+prove = ["risc0-zkvm/prove"]
+
+[dependencies]
+risc0-aiken-groth16-methods = { path = "methods" }
+risc0-zkvm = "^3.0.5"
+hex = "0.4"
+serde_json = "1"
+
+# The toolkit under test (path deps across the zkwrap-rs workspace boundary).
+zkwrap-core = { path = "../../zkwrap-rs/zkwrap-core" }
+zkwrap-prover = { path = "../../zkwrap-rs/zkwrap-prover" }
+zkwrap-risc0 = { path = "../../zkwrap-rs/zkwrap-risc0" }
