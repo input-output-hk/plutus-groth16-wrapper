@@ -6,12 +6,18 @@
 //!   bakes into `validators/verify.ak`.
 //! - [`canonicalize`] — the serializer half: native RISC Zero `Receipt` →
 //!   canonical inner proof + `meta.json` (the bundle `zkwrap-gnark` consumes).
+//!
+//! On top of those, [`validator`] is the host-facing factory: one call
+//! ([`build_validator`]) turns a receipt + canonical bundle + outer proof into a
+//! ready-to-`aiken check` project, hiding `compose` and the Aiken test suite.
 
 pub mod canonicalize;
 pub mod codegen;
+pub mod validator;
 
 pub use canonicalize::{canonicalize, Canonicalized};
 pub use codegen::Risc0Codegen;
+pub use validator::{build_validator, BuildValidatorError, Risc0ValidatorRequest};
 
 /// `system_id` matching the canonical inner proof's `meta.json`. Shared by both
 /// plugin halves: the codegen keys on it; the serializer will stamp it.
