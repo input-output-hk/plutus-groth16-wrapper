@@ -2,7 +2,7 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 3 complete (Aiken codegen — the Composer emits a project that `aiken check`s green). Phase 4 in progress (RISC Zero end-to-end): both plugin halves landed — `canonicalize` (Receipt → canonical inner proof) and `Risc0Codegen`. Next: wire the full `Receipt → prove → validator → aiken check` pipeline, then the preview-testnet submission. See [journal.md](journal.md) for latest status.
+> **Current phase:** Phase 4 step 3 complete (RISC Zero end-to-end, off-chain): the live `Receipt → canonicalize → prove → build_validator → aiken check` pipeline runs green, via the new `zkwrap-prover` (`GnarkCliProver`, ADR-0008's `CliProver` slice) and `zkwrap_risc0::build_validator`, demonstrated by the runnable `examples/risc0-aiken-groth16`. Next: step 4 — preview-testnet submission (a transaction that spends a UTxO guarded by the generated validator, proof in the redeemer). See [journal.md](journal.md) for latest status.
 > Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)

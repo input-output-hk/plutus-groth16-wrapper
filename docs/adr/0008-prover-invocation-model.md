@@ -1,6 +1,6 @@
 # Outer-prover invocation: pluggable `Prover`, persistent service to amortize proving-key load
 
-**Status:** **Preliminary / proposed — a design sketch, NOT implemented, and likely to be reconsidered before adoption.** This ADR exists to record the intended direction so it isn't lost while we build earlier slices; it commits us to nothing. It builds on [ADR-0003 (file-based plugin↔prover boundary)](0003-file-based-plugin-prover-boundary.md) and [ADR-0004 (gnark prover CLI)](0004-gnark-prover-cli.md), both of which **remain in force** until this is actually implemented and promoted.
+**Status:** **Partially implemented.** The `Prover` trait and the one-shot `CliProver` are **implemented** — shipped as `GnarkCliProver` in the `zkwrap-prover` crate (it writes the canonical inner proof to a temp dir and spawns `zkwrap-gnark prove`, paying the PK-load cost per call as described below). The persistent `ServiceProver` remains **proposed / unbuilt**; the open questions at the end still stand for it. [ADR-0003 (file-based plugin↔prover boundary)](0003-file-based-plugin-prover-boundary.md) and [ADR-0004 (gnark prover CLI)](0004-gnark-prover-cli.md) **remain in force** — the file-based one-shot path is now the live default via `GnarkCliProver`.
 
 ## Context
 

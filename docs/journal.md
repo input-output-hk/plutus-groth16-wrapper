@@ -20,6 +20,18 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-15 — Phase 4 step 3: RISC Zero end-to-end (off-chain)
+
+- **Work done:** wired the full live pipeline `Receipt → canonicalize → GnarkCliProver::prove → build_validator → aiken check`, with no hand-staged fixtures between steps.
+  - New crate **`zkwrap-prover`** — the off-chain driver: a `Prover` trait + `GnarkCliProver` (ADR-0008's `CliProver` slice; spawns the one-shot `zkwrap-gnark prove` over the ADR-0003 file boundary). ADR-0008 bumped to *partially implemented*.
+  - **`zkwrap_risc0::build_validator`** — one-call factory: outer-backend dispatch (`match` on the proof's `backend` id), the standard positive/tamper test suite, and `compose`. Hosts no longer hand-assemble `ComposeRequest` or Aiken test snippets; the acceptance test now drives it.
+  - **`examples/risc0-aiken-groth16`** — standalone runnable host crate (vendored `multiply` guest); its README is the tutorial. Not a workspace member, so the slow guest build stays out of the everyday `cargo` loop.
+  - Errors migrated to `thiserror` across the workspace; generated `aiken.toml` compiler bumped to 1.1.22.
+- **Findings:**
+  - **On-chain is feasible.** `aiken check` reports `verify_risc0_valid_proof` at cpu ≈ 3.9 B / mem ≈ 92 K — ~39% of the ~10 B cpu preview per-tx budget, <1% mem. This was the flagged top risk for Phase 4.
+  - **gnark PK load is pathological from `/mnt`.** gnark deserializes the 1 GB proving key with many tiny reads — ~30 min over the WSL 9p Windows mount vs ~33 s on native ext4. Keep `ZKWRAP_SETUP_DIR` on native fs; the CLI reloads the PK every call (the `ServiceProver` that would amortize it is still deferred).
+- **Links:** PR #18.
+
 ## 2026-06-11 — Phase 4: RISC Zero `canonicalize` + shared `fixtures/` reorg
 
 **`canonicalize` — the plugin's serializer half.** Added `zkwrap_risc0::canonicalize`:

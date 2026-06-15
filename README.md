@@ -36,6 +36,8 @@ flowchart LR
 
 Because Plutus V3 supports BLS12-381 (CIP-0381) but not BN254 pairings, the BN254 proof is **re-proved inside a BLS12-381 wrapper circuit** off-chain; the on-chain script verifies that wrapper proof. Its public inputs are `[InnerVKHash, input₀ … input₇]`, so the check reduces to *"a pinned inner VK accepted these inputs."*
 
+A runnable walkthrough of the whole flow — a RISC Zero guest through to a green `aiken check` on the generated validator — lives in [`examples/risc0-aiken-groth16/`](examples/risc0-aiken-groth16/).
+
 ### Two-axis codegen
 
 The on-chain verifier is not hand-written per system — it is **composed** from two independent, pluggable axes:
@@ -52,6 +54,8 @@ A **Composer** in `zkwrap-core` stitches one of each into a ready-to-`aiken chec
 | `zkwrap-gnark/` (Go) | Outer prover binary (`unsafe-setup`, `prove`, `verify`) — wraps a canonical inner proof into a BLS12-381 outer proof via gnark. |
 | `zkwrap-rs/zkwrap-core` (Rust) | Codegen engine: the Composer, the `OuterCodegen`/`InnerCodegen` traits, the gnark-groth16 outer backend (artifacts + Aiken template + VK-hash cross-check), and the BN254 inner-proof contract. |
 | `zkwrap-rs/zkwrap-risc0`, `zkwrap-sp1` | Per-system plugins: inner-layer Aiken codegen (and, in progress, native-receipt → canonical-proof conversion). |
+| `zkwrap-rs/zkwrap-prover` (Rust) | Off-chain prover driver: a `Prover` trait + `GnarkCliProver`, which spawns `zkwrap-gnark prove`. |
+| `examples/risc0-aiken-groth16/` | **Runnable end-to-end demo / tutorial:** a RISC Zero guest all the way to `aiken check` on the generated validator. See its README. |
 | `docs/` | `adr/` decisions · `schemas/` data contracts · `research/` notes · `journal.md` log. |
 | `experiments/` | Exploratory spikes (e.g. the hand-written Aiken verifier the generator was lifted from). |
 
