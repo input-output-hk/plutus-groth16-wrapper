@@ -133,8 +133,30 @@ fn groth16_tests(
     let l1_verify = |vkh: &str, ins: &str| {
         format!("{outer_mod}.verify(\n  {proof_lits},\n  {vkh},\n  {ins},\n)")
     };
-    // Composed entry, journal form: verify(proof…, journal_bytes).
-    let composed = |journal: &str| format!("verify(\n  {proof_lits},\n  {},\n)", ba(journal));
+    // Composed entry through the deployable redeemer path. Field names match the
+    // generated `Redeemer` type: the outer backend's proof params + journal_bytes.
+    let redeemer = |journal: &str| {
+        let proof_fields = outer
+            .proof_params()
+            .iter()
+            .zip([&pi_a, &pi_b, &pi_c, &cu, &pok])
+            .map(|(name, val)| format!("{name}: {val}"))
+            .collect::<Vec<_>>()
+            .join(",\n  ");
+        format!(
+            "Redeemer {{\n  {proof_fields},\n  journal_bytes: {},\n}}",
+            ba(journal)
+        )
+    };
+    // A mock UTxO ref; the validator ignores datum/utxo/tx, so a placeholder tx
+    // and a zero ref suffice to exercise the deployable `spend` handler.
+    let mock_ref = "OutputReference { transaction_id: #\"0000000000000000000000000000000000000000000000000000000000000000\", output_index: 0 }";
+    let composed = |journal: &str| {
+        format!(
+            "wrapper.spend(\n  None,\n  {},\n  {mock_ref},\n  placeholder,\n)",
+            redeemer(journal)
+        )
+    };
 
     Ok(vec![
         TestBlock::pass("verify_valid_proof", l1_verify(&vkhash, &inputs)),

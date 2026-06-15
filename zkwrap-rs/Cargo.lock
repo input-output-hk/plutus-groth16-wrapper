@@ -1772,14 +1772,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "thiserror 2.0.18",
+ "thiserror",
 ]
 
 [[package]]
 name = "zkwrap-prover"
 version = "0.1.0"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror",
  "zkwrap-core",
 ]
 
@@ -1796,7 +1796,7 @@ dependencies = [
  "risc0-groth16",
  "risc0-zkvm",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror",
  "zkwrap-core",
 ]
 

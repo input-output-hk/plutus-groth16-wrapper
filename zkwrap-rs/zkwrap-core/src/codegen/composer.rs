@@ -171,6 +171,16 @@ fn render_validator(
         params.push(format!("{}: {}", rp.name, rp.ty));
     }
 
+    // The `verify` params, in order, become the `Redeemer` fields; the spend
+    // handler / `verify_redeemer` forward each one as `redeemer.<name>`.
+    let redeemer_fields = params.clone();
+    let forward_args: Vec<String> = proof_params
+        .iter()
+        .map(|p| p.to_string())
+        .chain(wiring.raw_params.iter().map(|rp| rp.name.clone()))
+        .map(|name| format!("redeemer.{name}"))
+        .collect();
+
     // Destructure idents i0..i{n_real-1}; the outer call passes them padded to
     // MAX_INPUTS with literal zeros.
     let idents: Vec<String> = (0..n_real).map(|i| format!("i{i}")).collect();
@@ -205,6 +215,8 @@ fn render_validator(
         inner_vk_hash => req.inner_vk_hash,
         consts => wiring.consts,
         params => params,
+        redeemer_fields => redeemer_fields,
+        forward_args => forward_args,
         call_expr => wiring.call_expr,
         idents => idents.join(", "),
         forwarded_proof => proof_params.join(", "),
