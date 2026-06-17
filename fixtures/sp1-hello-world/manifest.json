@@ -1,19 +1,31 @@
 {
-  "groth16_vkey_hash_hex": "090690902a12d1d02c07a1ad25aa76bded5f6499e12a11ba127669501b553998",
+  "exit_code_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+  "groth16_vkey_hash_hex": "4388a21c687fdd5f218d7e3d13190cac4c5355818d3605fd5fb811df468ee696",
   "guest": "multiply(17, 23)",
-  "journal_bytes": 8,
-  "journal_decoded_u64": 391,
-  "journal_hex": "8701000000000000",
-  "proving_mode": "groth16_local_native_gnark",
+  "proof_bytes_len": 356,
+  "proof_nonce_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+  "proving_mode": "groth16_local_cpu_native_gnark",
   "public_inputs": [
-    "92360741836103906775453146117951933737352598612141104569177519263316369799",
-    "9747890225745800339047999895000149364384159344001995441670265923588659111166"
+    "205922228921289178148469420413941188507828442907728971729484782450287372490",
+    "9747890225745800339047999895000149364384159344001995441670265923588659111166",
+    "0",
+    "83960146348496814183195590144795274058764451818716359375255161226434597714",
+    "0"
   ],
-  "public_inputs_count": 2,
-  "seal_bytes": 324,
-  "seal_hex_prefix_32b": "1cee74e0abe4adef9002d3a4d0939814690e897b34c6aa40151fc5ea33fd515d",
-  "sp1_circuit_version": "v3.0.0",
-  "sp1_sdk_version": "3.4.0",
-  "sp1_vkey_hash": "0x0034463a51274255386a6ff0fdc0adedba8e2e1b4532a378bbda0383a206e187",
-  "vk_bin_bytes": 396
+  "public_inputs_count": 5,
+  "public_inputs_labels": [
+    "0: vkey_hash (program identity)",
+    "1: committed_values_digest = SHA256(public_values) top-3-bits masked",
+    "2: exit_code",
+    "3: vk_root (recursion VK merkle root, version constant)",
+    "4: proof_nonce"
+  ],
+  "public_values_hex": "8701000000000000",
+  "raw_proof_field_len_bytes": 324,
+  "sp1_circuit_version": "v6.1.0",
+  "sp1_sdk_version": "6.2.4",
+  "sp1_vkey_hash": "0x00748c3ffb14783359e5f5edcbb06b0126ec827daf019e75f04dc333535ce8ca",
+  "vk_bin_bytes": 492,
+  "vk_prefix_hex": "4388a21c",
+  "vk_root_hex": "002f850ee998974d6cc00e50cd0814b098c05bfade466d28573240d057f25352"
 }

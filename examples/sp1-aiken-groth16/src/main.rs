@@ -16,14 +16,14 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use sp1_sdk::{ProverClient, SP1Stdin};
+use sp1_sdk::blocking::{ProveRequest, Prover, ProverClient};
+use sp1_sdk::{include_elf, ProvingKey, SP1Stdin};
 
-use zkwrap_prover::{GnarkCliProver, Prover};
+use zkwrap_prover::{GnarkCliProver, Prover as _};
 use zkwrap_sp1::{build_validator, canonicalize_proof, Sp1ValidatorRequest};
 
-/// The guest ELF. Committed so the demo runs without the SP1 RISC-V toolchain;
-/// `build.rs` recompiles it when the toolchain is present.
-const ELF: &[u8] = include_bytes!("../program/elf/riscv32im-succinct-zkvm-elf");
+/// The guest ELF, compiled by `build.rs` (sp1-build) with the SP1 toolchain.
+const ELF: sp1_sdk::Elf = include_elf!("multiply");
 
 const FACTOR_A: u64 = 17;
 const FACTOR_B: u64 = 23;
@@ -45,28 +45,30 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  zkwrap-gnark : {}", gnark_bin.display());
     println!("  setup dir    : {}", setup_dir.display());
 
-    // --- [1] prove: run the guest through the SP1 Groth16 prover --------------
+    // --- [1] prove: run the guest through the SP1 Groth16 prover (local CPU) --
     println!("\n[1/4] proving multiply({FACTOR_A}, {FACTOR_B}) with .groth16() …");
-    println!("      (loads the ~2.7 GB SP1 Groth16 circuit; local proving takes minutes)");
-    let client = ProverClient::new();
-    let (pk, vk) = client.setup(ELF);
+    println!("      (loads the ~3.2 GB SP1 Groth16 circuit; local CPU proving takes minutes)");
+    let prover = ProverClient::builder().cpu().build();
+    let pk = prover.setup(ELF)?;
+    let vk = pk.verifying_key();
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&FACTOR_A);
     stdin.write(&FACTOR_B);
 
-    let proof = client.prove(&pk, stdin).groth16().run()?;
-    client.verify(&proof, &vk)?;
-    // Snapshot the committed public values before anything reads the cursor.
+    let proof = prover.prove(&pk, stdin).groth16().run()?;
+    // `proof.bytes()` = vkey prefix ‖ exit_code ‖ vk_root ‖ proof_nonce ‖ raw proof.
+    let proof_bytes = proof.bytes();
     let public_values = proof.public_values.as_slice().to_vec();
-    println!("      ✔ SP1 proof verified; public values = {}", hex::encode(&public_values));
+    let proof_nonce = proof_bytes[68..100].to_vec();
+    println!("      ✔ SP1 proof generated; public values = {}", hex::encode(&public_values));
 
     // --- [2] canonicalize: SP1 proof → canonical inner proof ------------------
     println!("\n[2/4] canonicalize_proof: SP1 proof → CanonicalInnerProof (ark-groth16 verify) …");
-    let canonical = canonicalize_proof(&proof, &vk)?;
+    let canonical = canonicalize_proof(&proof, vk)?;
     let n_real = canonical.proof.public_inputs.len();
     println!(
-        "      ✔ n_real = {n_real}; vkey_hash extracted into codegen meta ({})",
+        "      ✔ n_real = {n_real}; baked consts extracted (vkey_hash={})",
         canonical.codegen["vkey_hash"].as_str().unwrap_or("?")
     );
 
@@ -88,6 +90,7 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         outer_proof: &outer,
         outer_vk_json: &vk_json,
         public_values: &public_values,
+        proof_nonce: &proof_nonce,
         project_name: "zkwrap/sp1_groth16",
     })?;
 

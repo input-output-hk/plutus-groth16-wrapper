@@ -22,15 +22,17 @@ use crate::{Canonicalized, Sp1Codegen};
 /// Inputs to [`build_validator`]. All borrowed — the host already holds each.
 pub struct Sp1ValidatorRequest<'a> {
     /// The canonical bundle from [`canonicalize`](crate::canonicalize); its
-    /// `codegen` section (the `vkey_hash`) drives the inner-layer wiring.
+    /// `codegen` section (`vkey_hash`/`exit_code`/`vk_root`) drives the wiring.
     pub canonical: &'a Canonicalized,
     /// The outer proof from the prover. Its `backend` id selects the outer layer.
     pub outer_proof: &'a OuterProof,
     /// Raw `outer_vk.json` text from the trusted setup.
     pub outer_vk_json: &'a str,
-    /// The SP1 public values (the bytes the guest committed). The generated
-    /// SP1 tests bind the `committed_values_digest` derivation against these.
+    /// The SP1 public values (the bytes the guest committed). The generated SP1
+    /// tests bind the `committed_values_digest` derivation against these.
     pub public_values: &'a [u8],
+    /// The per-proof `proof_nonce` (32-byte big-endian, public input 4).
+    pub proof_nonce: &'a [u8],
     /// Aiken project name, `namespace/name` form (e.g. `"zkwrap/sp1_groth16"`).
     pub project_name: &'a str,
 }
@@ -49,7 +51,7 @@ pub enum BuildValidatorError {
 /// Build the Aiken validator project for an SP1 outer proof.
 ///
 /// Selects the outer layer from `outer_proof.backend`, generates the standard
-/// test suite (outer verify + tamper, plus the SP1 public-values-digest tests),
+/// test suite (outer verify + tamper, plus the SP1 public-values/nonce tests),
 /// and composes the project. Call [`GeneratedProject::write_to`] to materialize
 /// it on disk.
 pub fn build_validator(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, BuildValidatorError> {
@@ -63,7 +65,13 @@ pub fn build_validator(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, Bu
 fn build_groth16(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, BuildValidatorError> {
     let backend = Groth16Backend;
     let public_values_hex = hex::encode(req.public_values);
-    let tests = groth16_tests(&backend, req.outer_proof, &public_values_hex)?;
+    let proof_nonce_hex = hex::encode(req.proof_nonce);
+    let tests = groth16_tests(
+        &backend,
+        req.outer_proof,
+        &public_values_hex,
+        &proof_nonce_hex,
+    )?;
 
     Ok(compose(&ComposeRequest {
         project_name: req.project_name,
@@ -79,12 +87,13 @@ fn build_groth16(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, BuildVal
 /// The standard positive + tamper-negative suite for a Groth16 outer proof.
 /// The outer-layer tests use the universal outer ABI
 /// (`groth16.verify(<proof…>, inner_vk_hash, inputs)`); the SP1 tests reference
-/// the consts the inner wiring bakes (`vkey_hash`) and the `public_values`
-/// redeemer field.
+/// the consts the inner wiring bakes (`vkey_hash`/`exit_code`/`vk_root`) and the
+/// `public_values` + `proof_nonce` redeemer fields.
 fn groth16_tests(
     outer: &Groth16Backend,
     proof: &OuterProof,
     public_values_hex: &str,
+    proof_nonce_hex: &str,
 ) -> Result<Vec<TestBlock>, BuildValidatorError> {
     let outer_mod = outer.module_name();
     let inner_mod = Sp1Codegen.module_name();
@@ -110,6 +119,7 @@ fn groth16_tests(
 
     let reals = int_list(&proof.inputs[0..n_real]);
     let public_values_tampered = flip_first_byte(public_values_hex);
+    let proof_nonce_tampered = flip_first_byte(proof_nonce_hex);
 
     // Outer layer, literal-input form: <mod>.verify(proof…, vkhash, inputs).
     let l1_verify = |vkh: &str, ins: &str| {
@@ -117,8 +127,9 @@ fn groth16_tests(
     };
 
     // Composed entry through the deployable redeemer path. Field names match the
-    // generated `Redeemer` type: the outer backend's proof params + public_values.
-    let redeemer = |public_values: &str| {
+    // generated `Redeemer` type: the outer backend's proof params + public_values
+    // + proof_nonce.
+    let redeemer = |public_values: &str, proof_nonce: &str| {
         let proof_fields = outer
             .proof_params()
             .iter()
@@ -127,17 +138,18 @@ fn groth16_tests(
             .collect::<Vec<_>>()
             .join(",\n  ");
         format!(
-            "Redeemer {{\n  {proof_fields},\n  public_values: {},\n}}",
-            ba(public_values)
+            "Redeemer {{\n  {proof_fields},\n  public_values: {},\n  proof_nonce: {},\n}}",
+            ba(public_values),
+            ba(proof_nonce)
         )
     };
     // A mock UTxO ref; the validator ignores datum/utxo/tx, so a placeholder tx
     // and a zero ref suffice to exercise the deployable `spend` handler.
     let mock_ref = "OutputReference { transaction_id: #\"0000000000000000000000000000000000000000000000000000000000000000\", output_index: 0 }";
-    let composed = |public_values: &str| {
+    let composed = |public_values: &str, proof_nonce: &str| {
         format!(
             "wrapper.spend(\n  None,\n  {},\n  {mock_ref},\n  placeholder,\n)",
-            redeemer(public_values)
+            redeemer(public_values, proof_nonce)
         )
     };
 
@@ -162,14 +174,22 @@ fn groth16_tests(
         TestBlock::pass(
             "sp1_inputs_match_proof",
             format!(
-                "{inner_mod}.real_inputs({}, vkey_hash) == {reals}",
-                ba(public_values_hex)
+                "{inner_mod}.real_inputs({}, {}, vkey_hash, exit_code, vk_root) == {reals}",
+                ba(public_values_hex),
+                ba(proof_nonce_hex)
             ),
         ),
-        TestBlock::pass("verify_sp1_valid_proof", composed(public_values_hex)),
+        TestBlock::pass(
+            "verify_sp1_valid_proof",
+            composed(public_values_hex, proof_nonce_hex),
+        ),
         TestBlock::fail(
             "verify_sp1_tampered_public_values",
-            composed(&public_values_tampered),
+            composed(&public_values_tampered, proof_nonce_hex),
+        ),
+        TestBlock::fail(
+            "verify_sp1_tampered_proof_nonce",
+            composed(public_values_hex, &proof_nonce_tampered),
         ),
     ])
 }
@@ -201,8 +221,8 @@ fn bump_last(hex: &str) -> String {
     hex::encode(bytes)
 }
 
-/// Flip the low bit of the public values' first byte — a different, same-length
-/// input that must make the composed entry point reject.
+/// Flip the low bit of the first byte — a different, same-length value that must
+/// make the composed entry point reject.
 fn flip_first_byte(hex: &str) -> String {
     let mut bytes = hex::decode(hex).unwrap();
     bytes[0] ^= 0x01;

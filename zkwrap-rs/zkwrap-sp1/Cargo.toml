@@ -17,21 +17,19 @@ ark-groth16 = "0.5"
 ark-ec = "0.5"
 
 # Optional: the ergonomic adapter that accepts SP1's native proof/vk types.
-# Heavy (full prover stack, native-gnark CGO, Linux-only); kept out of the
-# default workspace build. Hosts opt in with `features = ["sp1-sdk"]`.
-sp1-sdk = { version = "3.4.0", default-features = false, optional = true }
+# Heavy (full prover stack, Plonky3, native-gnark CGO, Linux-only); kept out of
+# the default workspace build. Hosts opt in with `features = ["sp1-sdk"]`.
+sp1-sdk = { version = "6.2.4", default-features = false, optional = true }
 
-# Optional: the canonical-VK generator (`--bin gen-canonical-vk`). `sp1-verifier`
-# embeds SP1's fixed groth16_vk.bin as the public `GROTH16_VK_BYTES`; `bn`
-# (the same gnark-compatible curve crate sp1-verifier decodes it with) provides
-# the point types. Dev/regeneration only; off by default.
-sp1-verifier = { version = "3.4.0", default-features = false, optional = true }
+# Optional: the canonical-VK generator (`--bin gen-canonical-vk`). Decompresses
+# the committed `sp1_groth16_vk_v6_1_0.compressed.bin` with `bn` (the
+# gnark-compatible curve crate SP1's own verifier uses). Dev/regeneration only.
 bn = { package = "substrate-bn-succinct", version = "0.6", default-features = false, optional = true }
 
 [features]
 default = []
 sp1-sdk = ["dep:sp1-sdk"]
-gen-vk = ["dep:sp1-verifier", "dep:bn"]
+gen-vk = ["dep:bn"]
 
 [[bin]]
 name = "gen-canonical-vk"

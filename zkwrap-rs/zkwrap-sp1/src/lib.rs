@@ -11,12 +11,16 @@
 //! ([`build_validator`]) turns a canonical bundle + outer proof into a
 //! ready-to-`aiken check` project.
 //!
-//! ## SP1 inner axis
+//! ## SP1 inner axis (circuit v6.1.0)
 //!
-//! - `n_real = 2`: `inputs[0] = vkey_hash` (the program identity, baked like
-//!   RISC Zero's `image_id`) and `inputs[1] = committed_values_digest`
-//!   (`SHA256(public_values)` reduced to BN254 Fr, derived on-chain).
-//! - The inner Groth16 VK is fixed for SP1 circuit version v3.0.0; the canonical
+//! - `n_real = 5`:
+//!   `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`.
+//!   - `vkey_hash` (program identity, baked like RISC Zero's `image_id`),
+//!     `exit_code` (baked; 0 = success) and `vk_root` (baked SP1-version
+//!     constant) are version/program constants.
+//!   - `committed_values_digest = SHA256(public_values)` reduced to BN254 Fr is
+//!     derived on-chain; `proof_nonce` is per-proof and rides in the redeemer.
+//! - The inner Groth16 VK is fixed for SP1 circuit version v6.1.0; the canonical
 //!   form is baked into this crate (see [`canonicalize`]).
 //!
 //! ## sp1-sdk feature
@@ -39,4 +43,4 @@ pub use canonicalize::canonicalize_proof;
 
 /// `system_id` matching the canonical inner proof's `meta.json`. Shared by both
 /// plugin halves: the codegen keys on it; the serializer stamps it.
-pub const SYSTEM_ID: &str = "sp1-v3";
+pub const SYSTEM_ID: &str = "sp1-v6";

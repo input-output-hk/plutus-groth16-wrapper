@@ -1,16 +1,21 @@
-// Inner layer — SP1 inner-system scaffolding.
+// Inner layer — SP1 (v6.x) inner-system scaffolding.
 //
 // VENDORED VERBATIM by zkwrap-core's Composer: generic and constant-free across
-// guest programs. The per-program value (vkey_hash) arrives as a *parameter*.
+// guest programs. Per-program / per-version values (vkey_hash, exit_code,
+// vk_root) arrive as baked `Int` parameters; per-proof values (public_values,
+// proof_nonce) arrive as redeemer `ByteArray`s.
 //
-// SP1's two BN254 public inputs are:
-//   inputs[0] = vkey_hash               — the program identity (baked, passed in)
-//   inputs[1] = committed_values_digest — derived on-chain from public_values
+// SP1 v6.1.0's five BN254 public inputs are:
+//   inputs[0] = vkey_hash                — program identity (baked)
+//   inputs[1] = committed_values_digest  — derived on-chain from public_values
+//   inputs[2] = exit_code                — guest exit code (baked; 0 = success)
+//   inputs[3] = vk_root                  — recursion-VK root, version constant (baked)
+//   inputs[4] = proof_nonce              — per-proof nonce (redeemer)
 //
-// committed_values_digest is SP1's `hash_bn254`: SHA-256 of the committed
+// committed_values_digest is SP1's `hash_public_inputs`: SHA-256 of the committed
 // public values, with the top 3 bits of the big-endian digest masked off so it
-// fits in BN254 Fr. Masking the top 3 bits of a 256-bit value is exactly
-// reduction modulo 2^253. See docs/research/sp1-artifact-format.md §6.
+// fits in BN254 Fr — exactly reduction modulo 2^253. See
+// docs/research/sp1-artifact-format-v6.md §4.
 
 use aiken/builtin
 use aiken/primitive/bytearray
@@ -25,7 +30,19 @@ pub fn committed_values_digest(public_values: ByteArray) -> Int {
   bytearray.to_int_big_endian(builtin.sha2_256(public_values)) % fr_fit_modulus
 }
 
-// The 2 SP1 public inputs: [vkey_hash, committed_values_digest].
-pub fn real_inputs(public_values: ByteArray, vkey_hash: Int) -> List<Int> {
-  [vkey_hash, committed_values_digest(public_values)]
+// The 5 SP1 v6 public inputs, in order.
+pub fn real_inputs(
+  public_values: ByteArray,
+  proof_nonce: ByteArray,
+  vkey_hash: Int,
+  exit_code: Int,
+  vk_root: Int,
+) -> List<Int> {
+  [
+    vkey_hash,
+    committed_values_digest(public_values),
+    exit_code,
+    vk_root,
+    bytearray.to_int_big_endian(proof_nonce),
+  ]
 }

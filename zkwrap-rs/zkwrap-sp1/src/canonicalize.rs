@@ -1,17 +1,19 @@
-//! The serializer half of the SP1 plugin: converts SP1 Groth16 artifacts into
-//! the canonical inner-proof bundle the outer wrapper prover consumes.
+//! The serializer half of the SP1 plugin: converts SP1 (v6.x) Groth16 artifacts
+//! into the canonical inner-proof bundle the outer wrapper prover consumes.
 //!
 //! The core [`canonicalize`] takes **raw artifact bytes** and depends on no SP1
 //! crate, so it builds in the default workspace and the acceptance test runs
 //! against committed raw fixtures. Binding is established by an `ark-groth16`
-//! verification of the inner proof against the baked fixed VK and the two public
+//! verification of the inner proof against the baked fixed VK and the 5 public
+//! inputs — a wrong `vkey_hash`, tampered `public_values`, or altered
+//! `proof_nonce`/`exit_code`/`vk_root` all make that check fail.
 //!
 //! With the `sp1-sdk` feature, [`canonicalize_proof`] accepts SP1's native
 //! proof/vk types and delegates here, for risc0-style host ergonomics:
 //!
 //! ```ignore
-//! let proof = client.prove(&pk, stdin).groth16().run()?;
-//! zkwrap_sp1::canonicalize_proof(&proof, &vk)?.write_to("out/canonical")?;
+//! let proof = prover.prove(&pk, stdin).groth16().run()?;
+//! zkwrap_sp1::canonicalize_proof(&proof, pk.verifying_key())?.write_to("out/canonical")?;
 //! ```
 
 use std::borrow::Cow;
@@ -28,17 +30,21 @@ use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInner
 
 use crate::SYSTEM_ID;
 
-/// SP1's `raw_proof` byte length: 256 B Groth16 (`Ar‖Bs‖Krs`) + 4 B
-/// `num_commitments` + 64 B `CommitmentPok`. SP1's gnark fork always serializes
-/// the trailing commitment region even when there are no commitments.
-const SEAL_LEN: usize = 324;
+/// SP1 v6 on-chain proof bytes (`SP1ProofWithPublicValues::bytes()`), Groth16:
+///   [0..4]    groth16 vkey-hash prefix
+///   [4..36]   exit_code      (public input 2)
+///   [36..68]  vk_root        (public input 3)
+///   [68..100] proof_nonce    (public input 4)
+///   [100..356] raw gnark proof (Ar‖Bs‖Krs, 256 B uncompressed)
+const PROOF_BYTES_LEN: usize = 356;
+const RAW_PROOF_OFFSET: usize = 100;
 
-/// The fixed SP1 Groth16 verifying key (circuit version v3.0.0), in the
-/// canonical uncompressed [`Bn254Vk`] layout. Regenerated from SP1's own
-/// embedded compressed VK by `cargo run --bin gen-canonical-vk --features
-/// gen-vk` (which also asserts a byte-for-byte match with this file). All SP1
-/// v3.0.0 programs share this VK; program identity lives in `vkey_hash`.
-const SP1_GROTH16_VK_V3: &[u8] = include_bytes!("sp1_groth16_vk_v3_0_0.bin");
+/// The fixed SP1 Groth16 verifying key (circuit version v6.1.0), in the
+/// canonical uncompressed [`Bn254Vk`] layout. Regenerated from the committed
+/// compressed VK by `cargo run --bin gen-canonical-vk --features gen-vk` (which
+/// asserts a byte-for-byte match). All SP1 v6.1.0 programs share this VK;
+/// program identity lives in `vkey_hash`.
+const SP1_GROTH16_VK_V6: &[u8] = include_bytes!("sp1_groth16_vk_v6_1_0.bin");
 
 /// The full canonical inner-proof bundle the plugin emits: the cryptographic
 /// proof (consumed by `zkwrap-gnark`) plus the opaque `codegen` section
@@ -59,65 +65,76 @@ impl Canonicalized {
 
 #[derive(Debug, Error)]
 pub enum CanonicalizeError {
-    #[error("seal is {0} bytes, want {SEAL_LEN}")]
-    SealLen(usize),
-    #[error("SP1 proof carries {0} commitment(s); only commitment-free proofs are supported")]
-    HasCommitment(u32),
-    #[error("commitment-free proof has a non-zero CommitmentPok")]
-    NonZeroPok,
-    #[error("vkey_hash is not a canonical BN254 Fr element (>= r)")]
-    VkeyHashRange,
+    #[error("proof bytes are {0}, want {PROOF_BYTES_LEN}")]
+    ProofLen(usize),
+    #[error("{0} is not a canonical BN254 Fr element (>= r)")]
+    NonCanonical(&'static str),
     #[error("baked SP1 verifying key: {0:?}")]
     BakedVk(zkwrap_core::ParseError),
     #[error("a proof or verifying-key point is not on the curve / in the correct subgroup")]
     BadPoint,
-    #[error("inner Groth16 verification failed (wrong vkey_hash or tampered public values)")]
+    #[error(
+        "inner Groth16 verification failed (wrong vkey_hash / tampered public values / nonce)"
+    )]
     Verify,
 }
 
-/// Convert SP1 Groth16 artifacts into the canonical inner-proof bundle.
+/// Convert SP1 (v6.x) Groth16 artifacts into the canonical inner-proof bundle.
 ///
-/// - `seal`: SP1's 324-byte `raw_proof` (`WriteRawTo` + commitment region).
+/// - `proof_bytes`: SP1's 356-byte on-chain proof (`SP1ProofWithPublicValues::bytes()`).
 /// - `public_values`: the bytes the guest committed (`SP1PublicValues`).
 /// - `vkey_hash`: the program identity, `vk.bytes32()`, 32-byte big-endian.
 ///
-/// The two BN254 Fr public inputs are `[vkey_hash, committed_values_digest]`,
+/// The 5 BN254 Fr public inputs are
+/// `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`,
 /// where `committed_values_digest = SHA256(public_values)` with the top 3 bits
-/// masked off (SP1's `hash_bn254`, equivalently `digest_be mod 2^253`). The
-/// inner proof is then verified against the baked VK and these inputs.
+/// masked off (SP1's `hash_public_inputs`, == `digest_be mod 2^253`) and
+/// `exit_code`/`vk_root`/`proof_nonce` are read from the proof prefix. The inner
+/// proof is then verified against the baked VK and these inputs.
 pub fn canonicalize(
-    seal: &[u8],
+    proof_bytes: &[u8],
     public_values: &[u8],
     vkey_hash: [u8; 32],
 ) -> Result<Canonicalized, CanonicalizeError> {
-    if seal.len() != SEAL_LEN {
-        return Err(CanonicalizeError::SealLen(seal.len()));
+    if proof_bytes.len() != PROOF_BYTES_LEN {
+        return Err(CanonicalizeError::ProofLen(proof_bytes.len()));
     }
-    // Reject any proof that actually carries a Pedersen commitment: the
-    // canonical 256-byte form drops the commitment region, so a non-trivial
-    // commitment would silently change what is being verified.
-    let num_commitments = u32::from_be_bytes(seal[256..260].try_into().unwrap());
-    if num_commitments != 0 {
-        return Err(CanonicalizeError::HasCommitment(num_commitments));
-    }
-    if seal[260..324].iter().any(|&b| b != 0) {
-        return Err(CanonicalizeError::NonZeroPok);
-    }
+    let exit_code: [u8; 32] = proof_bytes[4..36].try_into().unwrap();
+    let vk_root: [u8; 32] = proof_bytes[36..68].try_into().unwrap();
+    let proof_nonce: [u8; 32] = proof_bytes[68..100].try_into().unwrap();
+    let raw: [u8; 256] = proof_bytes[RAW_PROOF_OFFSET..PROOF_BYTES_LEN]
+        .try_into()
+        .unwrap();
+    let proof = Bn254Proof::from_bytes(&raw);
 
-    let proof_bytes: [u8; 256] = seal[0..256].try_into().unwrap();
-    let proof = Bn254Proof::from_bytes(&proof_bytes);
-
-    let vkey_hash_fr = canonical_fr(&vkey_hash).ok_or(CanonicalizeError::VkeyHashRange)?;
+    // Validate every 32-byte public input is a canonical Fr (< r). `cvd` is
+    // < 2^253 < r by construction, so it needs no check.
+    let vkey_hash_fr =
+        canonical_fr(&vkey_hash).ok_or(CanonicalizeError::NonCanonical("vkey_hash"))?;
+    let exit_fr = canonical_fr(&exit_code).ok_or(CanonicalizeError::NonCanonical("exit_code"))?;
+    let vkr_fr = canonical_fr(&vk_root).ok_or(CanonicalizeError::NonCanonical("vk_root"))?;
+    let nonce_fr =
+        canonical_fr(&proof_nonce).ok_or(CanonicalizeError::NonCanonical("proof_nonce"))?;
     let cvd = committed_values_digest(public_values);
-    // cvd < 2^253 < r by construction, so it is always a canonical Fr.
-    let public_inputs = vec![Bn254Fr(vkey_hash), cvd.clone()];
 
-    let vk = Bn254Vk::from_bytes(SP1_GROTH16_VK_V3).map_err(CanonicalizeError::BakedVk)?;
+    let public_inputs = vec![
+        Bn254Fr(vkey_hash),
+        cvd.clone(),
+        Bn254Fr(exit_code),
+        Bn254Fr(vk_root),
+        Bn254Fr(proof_nonce),
+    ];
+
+    let vk = Bn254Vk::from_bytes(SP1_GROTH16_VK_V6).map_err(CanonicalizeError::BakedVk)?;
 
     // Binding: the inner Groth16 proof must verify against the baked VK and the
-    // two public inputs. ark-crypto matches the gnark verification the wrapper
+    // 5 public inputs. ark-crypto matches the gnark verification the wrapper
     // circuit performs (commitment-free Groth16/BN254).
-    verify_inner(&vk, &proof, &[vkey_hash_fr, fr_be(&cvd.0)])?;
+    verify_inner(
+        &vk,
+        &proof,
+        &[vkey_hash_fr, fr_be(&cvd.0), exit_fr, vkr_fr, nonce_fr],
+    )?;
 
     let proof = CanonicalInnerProof {
         vk,
@@ -126,10 +143,13 @@ pub fn canonicalize(
         system_id: Cow::Borrowed(SYSTEM_ID),
     };
 
-    // The per-program codegen section the deploy-time Composer consumes
-    // (see `Sp1Codegen::wiring`). Opaque to the prover.
+    // The per-program codegen section the deploy-time Composer bakes as consts
+    // (see `Sp1Codegen::wiring`). `proof_nonce` is per-proof, so it is NOT here —
+    // it rides in the redeemer alongside `public_values`.
     let codegen = serde_json::json!({
         "vkey_hash": hex::encode(vkey_hash),
+        "exit_code": hex::encode(exit_code),
+        "vk_root": hex::encode(vk_root),
     });
 
     Ok(Canonicalized { proof, codegen })
@@ -158,7 +178,7 @@ fn fr_be(be: &[u8; 32]) -> Fr {
 }
 
 /// Verify the inner Groth16 proof, validating point membership first (ark's
-/// `verify_proof` assumes valid points; the seal is attacker-controllable).
+/// `verify_proof` assumes valid points; the proof is attacker-controllable).
 fn verify_inner(
     vk: &Bn254Vk,
     proof: &Bn254Proof,
@@ -215,8 +235,8 @@ fn valid<P: SWCurveConfig>(pt: Affine<P>) -> Option<Affine<P>> {
 }
 
 /// Ergonomic adapter (feature `sp1-sdk`): accept SP1's native proof + verifying
-/// key, extract the raw artifacts, and delegate to [`canonicalize`]. This is the
-/// only entry point that depends on `sp1-sdk`.
+/// key, extract the on-chain proof bytes, and delegate to [`canonicalize`]. This
+/// is the only entry point that depends on `sp1-sdk`.
 #[cfg(feature = "sp1-sdk")]
 pub fn canonicalize_proof(
     proof: &sp1_sdk::SP1ProofWithPublicValues,
@@ -224,15 +244,11 @@ pub fn canonicalize_proof(
 ) -> Result<Canonicalized, Sp1SdkError> {
     use sp1_sdk::{HashableKey, SP1Proof};
 
-    let sp1_sdk::SP1ProofWithPublicValues {
-        proof: SP1Proof::Groth16(groth16),
-        ..
-    } = proof
-    else {
+    if !matches!(proof.proof, SP1Proof::Groth16(_)) {
         return Err(Sp1SdkError::NotGroth16);
-    };
-
-    let seal = hex::decode(&groth16.raw_proof).map_err(|e| Sp1SdkError::Seal(e.to_string()))?;
+    }
+    // `bytes()` = vkey prefix ‖ exit_code ‖ vk_root ‖ proof_nonce ‖ raw proof.
+    let proof_bytes = proof.bytes();
     let public_values = proof.public_values.as_slice();
 
     // `vk.bytes32()` → `0x`-prefixed 32-byte hex of the program vkey hash.
@@ -244,7 +260,7 @@ pub fn canonicalize_proof(
         .try_into()
         .map_err(|_| Sp1SdkError::VkeyHash("not 32 bytes".to_string()))?;
 
-    Ok(canonicalize(&seal, public_values, vkey_hash)?)
+    Ok(canonicalize(&proof_bytes, public_values, vkey_hash)?)
 }
 
 #[cfg(feature = "sp1-sdk")]
@@ -252,8 +268,6 @@ pub fn canonicalize_proof(
 pub enum Sp1SdkError {
     #[error("proof is not a Groth16 proof")]
     NotGroth16,
-    #[error("raw_proof: {0}")]
-    Seal(String),
     #[error("vkey_hash: {0}")]
     VkeyHash(String),
     #[error(transparent)]
@@ -277,14 +291,17 @@ mod tests {
     const RAW: &str = "fixtures/sp1-hello-world";
     const CANON: &str = "fixtures/canonical-inner/sp1-hello-world";
 
-    fn run() -> Canonicalized {
-        let seal = fixture(&format!("{RAW}/seal.bin"));
-        let public_values = fixture(&format!("{RAW}/public_values.bin"));
-        let vkey_hash: [u8; 32] = fixture(&format!("{RAW}/vkey_hash.bin"))
+    fn vkey_hash() -> [u8; 32] {
+        fixture(&format!("{RAW}/vkey_hash.bin"))
             .as_slice()
             .try_into()
-            .unwrap();
-        canonicalize(&seal, &public_values, vkey_hash).unwrap()
+            .unwrap()
+    }
+
+    fn run() -> Canonicalized {
+        let proof_bytes = fixture(&format!("{RAW}/proof_bytes.bin"));
+        let public_values = fixture(&format!("{RAW}/public_values.bin"));
+        canonicalize(&proof_bytes, &public_values, vkey_hash()).unwrap()
     }
 
     /// Oracle test: canonicalizing the committed hello-world artifacts must
@@ -308,12 +325,15 @@ mod tests {
             fixture(&format!("{CANON}/public_inputs.bin")),
             "public_inputs.bin"
         );
-        assert_eq!(c.proof.public_inputs.len(), 2);
-        assert_eq!(c.proof.system_id.as_ref(), "sp1-v3");
+        assert_eq!(c.proof.public_inputs.len(), 5);
+        assert_eq!(c.proof.system_id.as_ref(), "sp1-v6");
         assert_eq!(
             c.codegen["vkey_hash"].as_str().unwrap(),
-            hex::encode(fixture(&format!("{RAW}/vkey_hash.bin")))
+            hex::encode(vkey_hash())
         );
+        // exit_code / vk_root are baked from the proof prefix.
+        assert_eq!(c.codegen["exit_code"].as_str().unwrap().len(), 64);
+        assert_eq!(c.codegen["vk_root"].as_str().unwrap().len(), 64);
     }
 
     /// committed_values_digest = SHA256(public_values) mod 2^253 — the top
@@ -326,59 +346,50 @@ mod tests {
         assert_eq!(cvd.0.as_slice(), expected);
     }
 
-    /// Tampering the public values must break the binding (the recomputed
-    /// digest no longer matches what the proof committed → inner verify fails).
+    /// Tampering the public values breaks the binding (recomputed digest no
+    /// longer matches what the proof committed → inner verify fails).
     #[test]
     fn rejects_tampered_public_values() {
-        let seal = fixture(&format!("{RAW}/seal.bin"));
+        let proof_bytes = fixture(&format!("{RAW}/proof_bytes.bin"));
         let mut public_values = fixture(&format!("{RAW}/public_values.bin"));
         public_values[0] ^= 0x01;
-        let vkey_hash: [u8; 32] = fixture(&format!("{RAW}/vkey_hash.bin"))
-            .as_slice()
-            .try_into()
-            .unwrap();
         assert!(matches!(
-            canonicalize(&seal, &public_values, vkey_hash),
+            canonicalize(&proof_bytes, &public_values, vkey_hash()),
             Err(CanonicalizeError::Verify)
         ));
     }
 
-    /// A wrong vkey_hash must break the binding.
+    /// A wrong vkey_hash breaks the binding.
     #[test]
     fn rejects_wrong_vkey_hash() {
-        let seal = fixture(&format!("{RAW}/seal.bin"));
+        let proof_bytes = fixture(&format!("{RAW}/proof_bytes.bin"));
         let public_values = fixture(&format!("{RAW}/public_values.bin"));
-        let mut vkey_hash: [u8; 32] = fixture(&format!("{RAW}/vkey_hash.bin"))
-            .as_slice()
-            .try_into()
-            .unwrap();
-        vkey_hash[31] ^= 0x01;
+        let mut vh = vkey_hash();
+        vh[31] ^= 0x01;
         assert!(matches!(
-            canonicalize(&seal, &public_values, vkey_hash),
+            canonicalize(&proof_bytes, &public_values, vh),
+            Err(CanonicalizeError::Verify)
+        ));
+    }
+
+    /// Tampering the proof_nonce in the prefix breaks the binding (the inner
+    /// proof committed to the real nonce as public input 4).
+    #[test]
+    fn rejects_tampered_proof_nonce() {
+        let mut proof_bytes = fixture(&format!("{RAW}/proof_bytes.bin"));
+        proof_bytes[68] ^= 0x01; // first byte of proof_nonce
+        let public_values = fixture(&format!("{RAW}/public_values.bin"));
+        assert!(matches!(
+            canonicalize(&proof_bytes, &public_values, vkey_hash()),
             Err(CanonicalizeError::Verify)
         ));
     }
 
     #[test]
-    fn rejects_commitment_bearing_seal() {
-        let mut seal = fixture(&format!("{RAW}/seal.bin"));
-        seal[259] = 1; // num_commitments = 1
-        let public_values = fixture(&format!("{RAW}/public_values.bin"));
-        let vkey_hash: [u8; 32] = fixture(&format!("{RAW}/vkey_hash.bin"))
-            .as_slice()
-            .try_into()
-            .unwrap();
-        assert!(matches!(
-            canonicalize(&seal, &public_values, vkey_hash),
-            Err(CanonicalizeError::HasCommitment(1))
-        ));
-    }
-
-    #[test]
-    fn rejects_wrong_seal_len() {
+    fn rejects_wrong_proof_len() {
         assert!(matches!(
             canonicalize(&[0u8; 256], &[], [0u8; 32]),
-            Err(CanonicalizeError::SealLen(256))
+            Err(CanonicalizeError::ProofLen(256))
         ));
     }
 }

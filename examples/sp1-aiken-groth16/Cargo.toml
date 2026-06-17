@@ -6,18 +6,14 @@ license = "Apache-2.0"
 publish = false
 
 [dependencies]
-# SP1 local Groth16 proving (native-gnark = CGO gnark FFI; no network feature).
-sp1-sdk = { version = "3.4.0", features = ["native-gnark"], default-features = false }
+# SP1 local Groth16 proving (native-gnark = CGO gnark FFI; blocking = sync API;
+# no network feature).
+sp1-sdk = { version = "6.2.4", features = ["native-gnark", "blocking"], default-features = false }
 # Build OpenSSL from source so the build needs no system libssl-dev / pkg-config
 # (sp1-prover pulls reqwest → native-tls → openssl-sys transitively).
 openssl = { version = "0.10", features = ["vendored"] }
 hex = "0.4"
 serde_json = "1"
-
-# Pin: num-modular ≥ 0.6.2 adds a `Mul for &ReducedInt` impl that makes
-# sp1-core-machine 3.4.0 fail to compile (ambiguous `&_ * &Polynomial`, E0283).
-# This transitive-dep pin keeps a fresh `Cargo.lock` buildable. Not used directly.
-num-modular = "=0.6.1"
 
 # The toolkit under test (path deps across the zkwrap-rs workspace boundary).
 zkwrap-core = { path = "../../zkwrap-rs/zkwrap-core" }
@@ -26,4 +22,4 @@ zkwrap-prover = { path = "../../zkwrap-rs/zkwrap-prover" }
 zkwrap-sp1 = { path = "../../zkwrap-rs/zkwrap-sp1", features = ["sp1-sdk"] }
 
 [build-dependencies]
-sp1-build = "3.4.0"
+sp1-build = "6.2.4"

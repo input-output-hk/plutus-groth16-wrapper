@@ -32,13 +32,14 @@ fn read_bytes(rel: &str) -> Vec<u8> {
 fn factory_emits_aiken_check_passing_project() {
     // Drive it like a host: canonicalize the committed raw SP1 artifacts, then
     // pair the bundle with the committed outer proof.
-    let seal = read_bytes("fixtures/sp1-hello-world/seal.bin");
+    let proof_bytes = read_bytes("fixtures/sp1-hello-world/proof_bytes.bin");
     let public_values = read_bytes("fixtures/sp1-hello-world/public_values.bin");
+    let proof_nonce = read_bytes("fixtures/sp1-hello-world/proof_nonce.bin");
     let vkey_hash: [u8; 32] = read_bytes("fixtures/sp1-hello-world/vkey_hash.bin")
         .as_slice()
         .try_into()
         .unwrap();
-    let canonical = canonicalize(&seal, &public_values, vkey_hash).unwrap();
+    let canonical = canonicalize(&proof_bytes, &public_values, vkey_hash).unwrap();
 
     let vk_json = read("fixtures/groth16-setup/outer_vk.json");
     let outer = OuterProof::from_json(&read("fixtures/sp1-outer-proof.json")).unwrap();
@@ -48,6 +49,7 @@ fn factory_emits_aiken_check_passing_project() {
         outer_proof: &outer,
         outer_vk_json: &vk_json,
         public_values: &public_values,
+        proof_nonce: &proof_nonce,
         project_name: "zkwrap/sp1_groth16",
     })
     .unwrap();
@@ -66,7 +68,8 @@ fn factory_emits_aiken_check_passing_project() {
             "{name}.ak has unrendered holes"
         );
     }
-    assert!(validator.contains("const vkey_hash: Int = 0x0034463a"));
+    assert!(validator.contains("const vkey_hash: Int = 0x00748c3f"));
+    assert!(validator.contains("const vk_root: Int = 0x"));
 
     // Materialize under the (gitignored) target dir for inspection + aiken check.
     let out_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/generated/sp1-verifier");

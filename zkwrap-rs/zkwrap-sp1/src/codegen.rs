@@ -1,7 +1,8 @@
 //! The inner-layer half of the SP1 plugin: ships the generic, constant-free
 //! inner-layer source (`sp1.ak`) and implements [`InnerCodegen`], turning the
-//! canonical inner proof's `meta.json.codegen` section (the per-program
-//! `vkey_hash`) into the wiring the Composer bakes into `validators/verify.ak`.
+//! canonical inner proof's `meta.json.codegen` section (the per-program/version
+//! `vkey_hash`, `exit_code`, `vk_root`) into the wiring the Composer bakes into
+//! `validators/verify.ak`.
 
 use serde_json::Value;
 use zkwrap_core::{CodegenError, InnerCodegen, InnerWiring, RawParam};
@@ -9,7 +10,7 @@ use zkwrap_core::{CodegenError, InnerCodegen, InnerWiring, RawParam};
 use crate::SYSTEM_ID;
 
 const MODULE_NAME: &str = "sp1";
-const N_REAL: usize = 2;
+const N_REAL: usize = 5;
 
 /// The generic inner-layer source, vendored verbatim into the generated project.
 const INNER_SOURCE: &str = include_str!("codegen/sp1.ak");
@@ -35,18 +36,26 @@ impl InnerCodegen for Sp1Codegen {
     }
 
     fn wiring(&self, codegen: &Value) -> Result<InnerWiring, CodegenError> {
+        // Baked, as BN254 Fr `Int`s: inputs[0]=vkey_hash, [2]=exit_code, [3]=vk_root.
         let vkey_hash = hex_field(codegen, "vkey_hash", 32)?;
+        let exit_code = hex_field(codegen, "exit_code", 32)?;
+        let vk_root = hex_field(codegen, "vk_root", 32)?;
 
-        // inputs[0] = vkey_hash, the program identity, baked as a BN254 Fr Int.
-        let consts = vec![format!(
-            "const vkey_hash: Int = 0x{}",
-            hex::encode(&vkey_hash)
-        )];
+        let consts = vec![
+            format!("const vkey_hash: Int = 0x{}", hex::encode(&vkey_hash)),
+            format!("const exit_code: Int = 0x{}", hex::encode(&exit_code)),
+            format!("const vk_root: Int = 0x{}", hex::encode(&vk_root)),
+        ];
 
         Ok(InnerWiring {
             consts,
-            raw_params: vec![RawParam::new("public_values", "ByteArray")],
-            call_expr: "sp1.real_inputs(public_values, vkey_hash)".to_string(),
+            // Per-proof inputs: public_values (→ committed_values_digest) and the nonce.
+            raw_params: vec![
+                RawParam::new("public_values", "ByteArray"),
+                RawParam::new("proof_nonce", "ByteArray"),
+            ],
+            call_expr: "sp1.real_inputs(public_values, proof_nonce, vkey_hash, exit_code, vk_root)"
+                .to_string(),
         })
     }
 }
@@ -77,11 +86,16 @@ mod tests {
             .join(rel)
     }
 
+    fn hexf(rel: &str) -> String {
+        hex::encode(std::fs::read(repo_path(rel)).unwrap())
+    }
+
     fn test_codegen() -> Value {
-        let vkey_hash = hex::encode(
-            std::fs::read(repo_path("fixtures/sp1-hello-world/vkey_hash.bin")).unwrap(),
-        );
-        serde_json::json!({ "vkey_hash": vkey_hash })
+        serde_json::json!({
+            "vkey_hash": hexf("fixtures/sp1-hello-world/vkey_hash.bin"),
+            "exit_code": hexf("fixtures/canonical-inner/sp1-hello-world/exit_code.bin"),
+            "vk_root": hexf("fixtures/canonical-inner/sp1-hello-world/vk_root.bin"),
+        })
     }
 
     fn const_value(consts: &[String], name: &str) -> String {
@@ -93,18 +107,28 @@ mod tests {
         line.split('=').nth(1).unwrap().trim().to_string()
     }
 
-    /// The baked `vkey_hash` Int const must equal the 32-byte BE Fr hex of
-    /// inputs[0] from the outer proof (compared numerically via zero-padding).
+    fn assert_int_const_matches(consts: &[String], name: &str, expected_be_hex: &str) {
+        let v = const_value(consts, name);
+        let hex_part = v.strip_prefix("0x").expect("0x int literal");
+        assert_eq!(
+            format!("{:0>64}", hex_part),
+            expected_be_hex,
+            "const {name}"
+        );
+    }
+
+    /// The baked version-constant inputs (vkey_hash=[0], exit_code=[2], vk_root=[3])
+    /// must equal the corresponding slots of the outer proof.
     #[test]
-    fn baked_vkey_hash_matches_outer_proof() {
+    fn baked_consts_match_outer_proof() {
         let wiring = Sp1Codegen.wiring(&test_codegen()).unwrap();
         let proof = OuterProof::from_json(
             &std::fs::read_to_string(repo_path("fixtures/sp1-outer-proof.json")).unwrap(),
         )
         .unwrap();
-        let v = const_value(&wiring.consts, "vkey_hash");
-        let hex_part = v.strip_prefix("0x").expect("0x int literal");
-        assert_eq!(format!("{:0>64}", hex_part), proof.inputs[0]);
+        assert_int_const_matches(&wiring.consts, "vkey_hash", &proof.inputs[0]);
+        assert_int_const_matches(&wiring.consts, "exit_code", &proof.inputs[2]);
+        assert_int_const_matches(&wiring.consts, "vk_root", &proof.inputs[3]);
     }
 
     #[test]
@@ -112,21 +136,25 @@ mod tests {
         let wiring = Sp1Codegen.wiring(&test_codegen()).unwrap();
         assert_eq!(
             wiring.raw_params,
-            vec![RawParam::new("public_values", "ByteArray")]
+            vec![
+                RawParam::new("public_values", "ByteArray"),
+                RawParam::new("proof_nonce", "ByteArray"),
+            ]
         );
         assert_eq!(
             wiring.call_expr,
-            "sp1.real_inputs(public_values, vkey_hash)"
+            "sp1.real_inputs(public_values, proof_nonce, vkey_hash, exit_code, vk_root)"
         );
-        assert_eq!(wiring.consts.len(), 1);
-        assert_eq!(Sp1Codegen.n_real(), 2);
+        assert_eq!(wiring.consts.len(), 3);
+        assert_eq!(Sp1Codegen.n_real(), 5);
         assert_eq!(Sp1Codegen.module_name(), "sp1");
-        assert_eq!(Sp1Codegen.system_id(), "sp1-v3");
+        assert_eq!(Sp1Codegen.system_id(), "sp1-v6");
     }
 
     #[test]
     fn rejects_short_field() {
-        let bad = serde_json::json!({ "vkey_hash": "0034" });
+        let mut bad = test_codegen();
+        bad["vkey_hash"] = serde_json::json!("0034");
         assert!(matches!(
             Sp1Codegen.wiring(&bad),
             Err(CodegenError::Meta(_))
@@ -135,9 +163,8 @@ mod tests {
 
     #[test]
     fn rejects_missing_field() {
-        let bad = serde_json::json!({});
         assert!(matches!(
-            Sp1Codegen.wiring(&bad),
+            Sp1Codegen.wiring(&serde_json::json!({})),
             Err(CodegenError::Meta(_))
         ));
     }

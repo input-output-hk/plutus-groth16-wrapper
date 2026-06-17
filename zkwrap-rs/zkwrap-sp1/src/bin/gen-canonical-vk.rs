@@ -1,15 +1,13 @@
-//! Regenerates the baked canonical SP1 Groth16 verifying key
-//! (`src/sp1_groth16_vk_v3_0_0.bin`) entirely in Rust — no Go round-trip.
+//! Decompresses SP1's fixed v6.1.0 Groth16 verifying key into the uncompressed
+//! canonical form (`src/sp1_groth16_vk_v6_1_0.bin`).
 //!
-//! SP1's fixed v3.0.0 Groth16 VK ships in gnark's *compressed* point encoding.
-//! `sp1-verifier` embeds those exact bytes as the public `GROTH16_VK_BYTES`
-//! constant and decodes them with the `bn` (substrate-bn-succinct) curve crate.
-//! The gnark compressed→affine decode is `pub(crate)` there, so the three
-//! decode helpers below are vendored **verbatim** from
-//! `sp1-verifier-3.4.0/src/groth16/converter.rs` + `constants.rs` (only the
-//! error handling is simplified). Using SP1's own VK bytes and decode logic
-//! keeps this authoritative; the curve math is identical to SP1's on-chain
-//! verifier.
+//! SP1's VK ships in gnark's *compressed* point encoding (the committed
+//! `sp1_groth16_vk_v6_1_0.compressed.bin`, from SP1's circuit artifacts). The
+//! three gnark compressed→affine decode helpers below are vendored **verbatim**
+//! from `sp1-verifier-3.4.0/src/groth16/converter.rs` + `constants.rs` (only the
+//! error handling is simplified), using the same `bn` (substrate-bn-succinct)
+//! curve crate SP1's own verifier decodes with — so the curve math is identical
+//! to SP1's. The format is stable across circuit versions.
 //!
 //! We then re-emit the points in the canonical uncompressed [`Bn254Vk`] layout
 //! (`docs/schemas/canonical-inner-proof.md`) and, by default, assert the result
@@ -109,10 +107,12 @@ fn g2_canonical(p: &AffineG2) -> Bn254G2 {
 }
 
 fn main() {
-    // SP1's own embedded fixed v3.0.0 Groth16 VK, in gnark compressed form.
-    let buf: &[u8] = *sp1_verifier::GROTH16_VK_BYTES;
+    // SP1's fixed v6.1.0 Groth16 VK (gnark compressed), committed alongside the
+    // canonical form it decompresses to. Source: the v6 experiment's
+    // groth16_vk.bin (downloaded from SP1's circuit artifacts).
+    let buf: &[u8] = include_bytes!("../sp1_groth16_vk_v6_1_0.compressed.bin");
 
-    // Layout (docs/research/sp1-artifact-format.md §4): alpha[0..32],
+    // Layout (docs/research/sp1-artifact-format-v6.md §5): alpha[0..32],
     // beta_g2[64..128], gamma_g2[128..192], delta_g2[224..288], num_k[288..292],
     // then K points. (Slots [32..64]=beta_g1 and [192..224]=delta_g1 are unused
     // in verification.) We store the *real* beta_g2 — sp1-verifier negates it
@@ -139,7 +139,7 @@ fn main() {
     };
     let bytes = vk.to_bytes();
 
-    let committed = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/sp1_groth16_vk_v3_0_0.bin");
+    let committed = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/sp1_groth16_vk_v6_1_0.bin");
     if let Ok(existing) = std::fs::read(&committed) {
         assert_eq!(
             bytes,
