@@ -8,7 +8,7 @@
 // SP1 v6.1.0's five BN254 public inputs are:
 //   inputs[0] = sp1_program_vkey_hash    — program identity, SP1's `vkey_hash` (baked)
 //   inputs[1] = committed_values_digest  — derived on-chain from public_values
-//   inputs[2] = exit_code                — guest exit code (baked; 0 = success)
+//   inputs[2] = exit_code                — guest exit code (baked; canonicalize rejects != 0)
 //   inputs[3] = vk_root                  — recursion-VK root, version constant (baked)
 //   inputs[4] = proof_nonce              — per-proof nonce (redeemer)
 //

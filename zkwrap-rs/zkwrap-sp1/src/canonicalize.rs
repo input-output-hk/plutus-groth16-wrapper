@@ -68,6 +68,8 @@ pub enum CanonicalizeError {
     VkeyHash(String),
     #[error("{0} is not a canonical BN254 Fr element (>= r)")]
     NonCanonical(&'static str),
+    #[error("guest exit_code is non-zero (0x{0}); only successful executions (exit_code == 0) are wrapped")]
+    NonZeroExitCode(String),
     #[error("malformed inner Groth16 proof")]
     BadProof,
     #[error(
@@ -108,6 +110,14 @@ pub fn canonicalize(
     let raw: [u8; 256] = encoded[RAW_PROOF_OFFSET..ENCODED_PROOF_LEN]
         .try_into()
         .unwrap();
+
+    // Enforce a successful execution. SP1's own verifier defaults to
+    // expected_exit_code == 0; we bake exit_code into the validator as a trusted
+    // constant, so a non-zero code (a panicked/reverted guest) must be rejected
+    // here — otherwise the generated validator would attest a failed run.
+    if exit_code != [0u8; 32] {
+        return Err(CanonicalizeError::NonZeroExitCode(hex::encode(exit_code)));
+    }
 
     // vkey_hash (program identity, public input 0) lives only in the decimal
     // public-inputs list, not the encoded_proof prefix.
@@ -339,6 +349,23 @@ mod tests {
         assert!(matches!(
             canonicalize(&SP1Proof::Groth16(g), &public_values),
             Err(CanonicalizeError::Verify)
+        ));
+    }
+
+    /// A non-zero exit_code (panicked/reverted guest) is rejected up front, so
+    /// the validator never bakes a failed execution.
+    #[test]
+    fn rejects_nonzero_exit_code() {
+        let SP1Proof::Groth16(mut g) = sp1_proof() else {
+            unreachable!()
+        };
+        let mut encoded = hex::decode(&g.encoded_proof).unwrap();
+        encoded[31] = 1; // exit_code = 1 (last byte of the first 32-byte word)
+        g.encoded_proof = hex::encode(&encoded);
+        let public_values = fixture(&format!("{RAW}/public_values.bin"));
+        assert!(matches!(
+            canonicalize(&SP1Proof::Groth16(g), &public_values),
+            Err(CanonicalizeError::NonZeroExitCode(_))
         ));
     }
 

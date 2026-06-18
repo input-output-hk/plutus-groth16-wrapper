@@ -65,7 +65,7 @@ BN254 Fr read big-endian. From the reference proof:
 |---|------|--------------------|----------------------------------|
 | 0 | `vkey_hash` | `0x00748c3ffb14783359e5f5edcbb06b0126ec827daf019e75f04dc333535ce8ca` | **baked** — program identity, `vk.bytes32()` |
 | 1 | `committed_values_digest` | `9747…111166` | **derived on-chain** — `SHA256(public_values)` with the top 3 bits of byte 0 masked (`== mod 2^253`); unchanged from v3's `hash_public_inputs` |
-| 2 | `exit_code` | `0` | **baked = 0** (SP1's `verify` enforces `==0`; nonzero = panicked guest) |
+| 2 | `exit_code` | `0` | **baked**, and `canonicalize` rejects `!= 0` (matching SP1's default `verify`) — only successful executions are wrapped; nonzero = panicked guest |
 | 3 | `vk_root` | `0x002f850ee998974d6cc00e50cd0814b098c05bfade466d28573240d057f25352` | **baked** — SP1 v6.1.0 version constant (recursion-VK merkle root; `sp1_verifier::VK_ROOT_BYTES`) |
 | 4 | `proof_nonce` | `0` | per-proof, **unconstrained** by SP1's verifier — carry in the redeemer (bound by the inner proof), `0` for local proving |
 

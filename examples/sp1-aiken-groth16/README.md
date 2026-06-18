@@ -107,6 +107,3 @@ inspection — `validators/verify.ak` is the deployable validator, with the
   filesystem (e.g. `$HOME/zkwrap-setup`), not under `/mnt/*`. gnark reads the
   1 GB proving key with many small reads — ~30 min over the Windows 9p mount vs
   ~30 s on native ext4.
-- **Rust-version mismatch:** if the host and SP1 guest toolchains differ,
-  `SP1_SKIP_PROGRAM_BUILD=true` reuses the committed ELF instead of recompiling
-  the guest (see `docs/research/sp1-artifact-format.md` §10).
