@@ -13,7 +13,7 @@ thiserror = "2"
 risc0-zkvm = { version = "3.0.5", default-features = false, features = ["std"] }
 risc0-groth16 = "=3.0.4"
 risc0-circuit-recursion = { version = "=4.0.4", default-features = false }
-ark-bn254 = "0.5"
-ark-ff = "0.5"
-ark-groth16 = "0.5"
-ark-serialize = "0.5"
+ark-bn254 = "0.6"
+ark-ff = "0.6"
+ark-groth16 = "0.6"
+ark-serialize = "0.6"
