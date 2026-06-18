@@ -18,8 +18,7 @@ serde_json = "1"
 # The toolkit under test (path deps across the zkwrap-rs workspace boundary).
 zkwrap-core = { path = "../../zkwrap-rs/zkwrap-core" }
 zkwrap-prover = { path = "../../zkwrap-rs/zkwrap-prover" }
-# The `sp1-sdk` feature enables the ergonomic `canonicalize_proof(&proof, &vk)`.
-zkwrap-sp1 = { path = "../../zkwrap-rs/zkwrap-sp1", features = ["sp1-sdk"] }
+zkwrap-sp1 = { path = "../../zkwrap-rs/zkwrap-sp1" }
 
 [build-dependencies]
 sp1-build = "6.2.4"

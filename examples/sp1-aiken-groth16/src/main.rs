@@ -17,10 +17,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use sp1_sdk::blocking::{ProveRequest, Prover, ProverClient};
-use sp1_sdk::{include_elf, ProvingKey, SP1Stdin};
+use sp1_sdk::{include_elf, SP1Stdin};
 
 use zkwrap_prover::{GnarkCliProver, Prover as _};
-use zkwrap_sp1::{build_validator, canonicalize_proof, Sp1ValidatorRequest};
+use zkwrap_sp1::{build_validator, canonicalize, Sp1ValidatorRequest};
 
 /// The guest ELF, compiled by `build.rs` (sp1-build) with the SP1 toolchain.
 const ELF: sp1_sdk::Elf = include_elf!("multiply");
@@ -50,23 +50,21 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("      (loads the ~3.2 GB SP1 Groth16 circuit; local CPU proving takes minutes)");
     let prover = ProverClient::builder().cpu().build();
     let pk = prover.setup(ELF)?;
-    let vk = pk.verifying_key();
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&FACTOR_A);
     stdin.write(&FACTOR_B);
 
     let proof = prover.prove(&pk, stdin).groth16().run()?;
-    // `proof.bytes()` = vkey prefix ‖ exit_code ‖ vk_root ‖ proof_nonce ‖ raw proof.
-    let proof_bytes = proof.bytes();
     let public_values = proof.public_values.as_slice().to_vec();
-    let proof_nonce = proof_bytes[68..100].to_vec();
     println!("      ✔ SP1 proof generated; public values = {}", hex::encode(&public_values));
 
     // --- [2] canonicalize: SP1 proof → canonical inner proof ------------------
-    println!("\n[2/4] canonicalize_proof: SP1 proof → CanonicalInnerProof (ark-groth16 verify) …");
-    let canonical = canonicalize_proof(&proof, vk)?;
+    println!("\n[2/4] canonicalize: SP1 proof → CanonicalInnerProof (ark-groth16 verify) …");
+    let canonical = canonicalize(&proof.proof, &public_values)?;
     let n_real = canonical.proof.public_inputs.len();
+    // proof_nonce (public input 4) is per-proof; it rides in the validator redeemer.
+    let proof_nonce = canonical.proof.public_inputs[4].0;
     println!(
         "      ✔ n_real = {n_real}; baked consts extracted (vkey_hash={})",
         canonical.codegen["vkey_hash"].as_str().unwrap_or("?")

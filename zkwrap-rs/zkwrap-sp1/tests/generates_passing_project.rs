@@ -11,6 +11,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use sp1_verifier::{Groth16Bn254Proof, SP1Proof};
 use zkwrap_core::OuterProof;
 use zkwrap_sp1::{build_validator, canonicalize, Sp1ValidatorRequest};
 
@@ -30,16 +31,30 @@ fn read_bytes(rel: &str) -> Vec<u8> {
 
 #[test]
 fn factory_emits_aiken_check_passing_project() {
-    // Drive it like a host: canonicalize the committed raw SP1 artifacts, then
-    // pair the bundle with the committed outer proof.
+    // Drive it like a host: reconstruct the SP1 proof from the committed
+    // artifacts, canonicalize it, then pair the bundle with the committed outer
+    // proof. `proof_bytes.bin` = 4-byte vkey prefix + 352-byte encoded_proof.
     let proof_bytes = read_bytes("fixtures/sp1-hello-world/proof_bytes.bin");
     let public_values = read_bytes("fixtures/sp1-hello-world/public_values.bin");
-    let proof_nonce = read_bytes("fixtures/sp1-hello-world/proof_nonce.bin");
-    let vkey_hash: [u8; 32] = read_bytes("fixtures/sp1-hello-world/vkey_hash.bin")
-        .as_slice()
-        .try_into()
-        .unwrap();
-    let canonical = canonicalize(&proof_bytes, &public_values, vkey_hash).unwrap();
+    let manifest: serde_json::Value =
+        serde_json::from_str(&read("fixtures/sp1-hello-world/manifest.json")).unwrap();
+    let vkey_hash_dec = manifest["public_inputs"][0].as_str().unwrap().to_string();
+
+    let sp1_proof = SP1Proof::Groth16(Groth16Bn254Proof {
+        public_inputs: [
+            vkey_hash_dec,
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ],
+        encoded_proof: hex::encode(&proof_bytes[4..]),
+        raw_proof: String::new(),
+        groth16_vkey_hash: proof_bytes[0..32].try_into().unwrap(),
+    });
+    let canonical = canonicalize(&sp1_proof, &public_values).unwrap();
+    // proof_nonce is public input 4 of the canonical bundle.
+    let proof_nonce = canonical.proof.public_inputs[4].0;
 
     let vk_json = read("fixtures/groth16-setup/outer_vk.json");
     let outer = OuterProof::from_json(&read("fixtures/sp1-outer-proof.json")).unwrap();

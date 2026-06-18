@@ -80,8 +80,8 @@ The SP1 host program imports the toolkit and calls it directly. The two
 load-bearing calls are:
 
 ```rust
-// [2] canonicalize the native SP1 proof (ergonomic adapter, `sp1-sdk` feature)
-let canonical = zkwrap_sp1::canonicalize_proof(&proof, &vk)?;
+// [2] canonicalize the native SP1 proof (one call, takes sp1-verifier types)
+let canonical = zkwrap_sp1::canonicalize(&proof.proof, proof.public_values.as_slice())?;
 
 // [3] wrap into a BLS12-381 outer proof (spawns zkwrap-gnark)
 let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove(&canonical.proof)?;
@@ -92,6 +92,7 @@ let project = build_validator(&Sp1ValidatorRequest {
     outer_proof: &outer,
     outer_vk_json: &vk_json,
     public_values: proof.public_values.as_slice(),
+    proof_nonce: &canonical.proof.public_inputs[4].0,
     project_name: "zkwrap/sp1_groth16",
 })?;
 project.write_to(&out_dir)?;  // writes aiken.toml, lib/, validators/, test/
