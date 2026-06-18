@@ -20,6 +20,22 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-18 — Phase 5: SP1 plugin (`zkwrap-sp1`), targeting current SP1 (v6.1.0)
+
+- **Context:** second inner-system plugin, mirroring the RISC Zero one. Started against a stale SP1 (v3.0.0 / 2 public inputs) from the old experiment, then reworked to **current SP1 (sp1-sdk 6.2.4, circuit v6.1.0)** — it's the version anyone integrating today will use, and its public-input shape is what we must commit to on-chain.
+- **Work done:**
+  - New crate **`zkwrap-sp1`** (`SYSTEM_ID = "sp1-v6"`): `canonicalize` + `Sp1Codegen` + `build_validator`/`Sp1ValidatorRequest`, same shape as `zkwrap-risc0`.
+  - **`canonicalize(&SP1Proof, public_values)`** — one call on the native `sp1-verifier` types. It decodes the fixed Groth16 VK and the proof on the fly through `sp1-verifier`'s public `ark` API (`GROTH16_VK_BYTES`, `load_ark_groth16_verifying_key_from_bytes`, `load_ark_proof_from_bytes`) — **no committed VK blob, no copied converter, no `sp1-sdk` dependency** in the crate. It ark-verifies the inner proof against the 5 inputs (with `committed_values_digest` recomputed from `public_values`) before emitting the canonical bundle, and **rejects `exit_code != 0`** (only successful executions wrap).
+  - SP1 v6's **5 BN254 public inputs** `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]` (v3 had 2). On-chain proof bytes are 356 B = 4-B vkey prefix ‖ exit_code ‖ vk_root ‖ proof_nonce ‖ 256-B gnark proof. Codegen bakes `sp1_program_vkey_hash`/`exit_code`/`vk_root`; `committed_values_digest = SHA256(public_values) mod 2^253` is derived on-chain; `proof_nonce` rides in the redeemer.
+  - **`examples/sp1-aiken-groth16`** (live host: prove → canonicalize → gnark wrap → `build_validator` → `aiken check`) and **`experiments/sp1-v6-hello-world`** (the artifact-dump experiment; `sp1-sdk` lives only here and in the example, with `native-gnark` + vendored OpenSSL). Format pinned in `docs/research/sp1-artifact-format-v6.md`.
+  - Fixtures: `fixtures/canonical-inner/sp1-hello-world/` trimmed to the pure bundle, outer proofs moved to `fixtures/outer-proofs/<inner>-groth16-outer-proof.json`.
+- **Findings:**
+  - **SP1 v6's 5 inputs match RISC Zero's 5** — so the universal outer circuit (`MAX_INPUTS = 8`) and the *committed* trusted setup cover SP1 with **no new ceremony**; the public-input vector is `[i0..i4, 0, 0, 0]`.
+  - **ark version split is load-bearing.** `sp1-verifier 6.2.4` pins **ark 0.5**, so `zkwrap-sp1` stays on 0.5 while `zkwrap-core`/`zkwrap-risc0` moved to **0.6** (Dependabot #19). The two coexist per-crate (`deny.toml` `multiple-versions = "warn"`); it blocks sharing the canonical-VK/Fr encoding helpers into core for now. Layout regressions are still caught at `cargo test` time by the byte-exact `canonicalize_matches_committed_bundle` oracle test.
+  - **SP1 local CPU Groth16 proving is too heavy for free hosted CI** (~16 GB+ RAM, many minutes → OOM/timeout). Dropped the live SP1 example from nightly; SP1's wrap + validator path stays covered by the acceptance test (fixture → `build_validator` → `aiken check`) and the oracle test, and RISC Zero's live nightly run exercises the identical outer circuit.
+- **Open questions / follow-ups:** extract the shared outer-test generator into `zkwrap-core` (deferred — blocked on unifying the ark version); add a Dependabot ignore so it stops proposing ark 0.6 for `zkwrap-sp1`.
+- **Links:** PR #21; `zkwrap-rs/zkwrap-sp1/`, `docs/research/sp1-artifact-format-v6.md`.
+
 ## 2026-06-15 — Phase 4 step 3: RISC Zero end-to-end (off-chain)
 
 - **Work done:** wired the full live pipeline `Receipt → canonicalize → GnarkCliProver::prove → build_validator → aiken check`, with no hand-staged fixtures between steps.

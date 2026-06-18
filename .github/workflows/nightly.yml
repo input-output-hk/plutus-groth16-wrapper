@@ -47,14 +47,14 @@ jobs:
         run: cargo test --release --locked --workspace
 
   # ---------------------------------------------------------------------------
-  # Live end-to-end example runs (prove -> wrap -> aiken check). Heavy (zkVM
-  # toolchains, multi-GB circuit artifacts, ~1 GB outer PK, CPU proving) — nightly
-  # only. Both examples share the universal outer setup (MAX_INPUTS=8), so a
-  # single job installs everything and generates that setup once, then runs both.
+  # Live end-to-end example run (prove -> wrap -> aiken check). Heavy (zkVM
+  # toolchain, multi-GB circuit artifacts, ~1 GB outer PK, CPU proving) — nightly
+  # only.
   # ---------------------------------------------------------------------------
   run-examples:
-    name: "Examples (live: RISC Zero + SP1)"
+    name: "Example (live: RISC Zero)"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
 
@@ -63,10 +63,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
                       /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
           df -h /
-
-      # sp1-prover-types' build script (prost-build) needs the protoc binary.
-      - name: Install protobuf-compiler (sp1-prover-types build dep)
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
       - uses: actions/setup-go@v6
         with:
@@ -79,7 +75,7 @@ jobs:
           go build -o /tmp/zkwrap-gnark ./cmd/zkwrap-gnark
           echo "ZKWRAP_GNARK_BIN=/tmp/zkwrap-gnark" >> "$GITHUB_ENV"
 
-      # One outer setup, used by both examples (same universal MAX_INPUTS=8 circuit).
+      # The universal outer setup (same MAX_INPUTS=8 circuit for every inner system).
       - name: Generate outer trusted setup (MAX_INPUTS=8)
         run: |
           /tmp/zkwrap-gnark unsafe-setup --max-inputs 8 --out "$HOME/zkwrap-setup"
@@ -97,20 +93,7 @@ jobs:
           echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
           "$HOME/.risc0/bin/rzup" install
 
-      - name: Install SP1 toolchain (cargo-prove + succinct Rust)
-        run: |
-          curl -L https://sp1.succinct.xyz | bash
-          echo "$HOME/.sp1/bin" >> "$GITHUB_PATH"
-          "$HOME/.sp1/bin/sp1up"
-
       # Docker (preinstalled) runs RISC Zero's STARK->SNARK step.
       - name: RISC Zero example (prove -> wrap -> aiken check)
         working-directory: examples/risc0-aiken-groth16
-        run: cargo run --release
-
-      # native-gnark needs Go + CGO/GCC (present); OpenSSL is vendored. First run
-      # downloads the ~3.2 GB v6.1.0 circuit artifacts into ~/.sp1. Keep
-      # SP1_SKIP_PROGRAM_BUILD UNSET so the guest ELF is compiled.
-      - name: SP1 example (prove -> wrap -> aiken check)
-        working-directory: examples/sp1-aiken-groth16
         run: cargo run --release

@@ -43,6 +43,9 @@ pub fn real_inputs(
     committed_values_digest(public_values),
     exit_code,
     vk_root,
+    // Note that the verifier reduces proof_nonce mod r.
+    // This should be taken into account when using proof_nonce
+    // in app logic
     bytearray.to_int_big_endian(proof_nonce),
   ]
 }
