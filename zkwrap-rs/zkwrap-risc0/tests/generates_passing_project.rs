@@ -42,7 +42,9 @@ fn factory_emits_aiken_check_passing_project() {
     let canonical = canonicalize(&receipt, image_id).unwrap();
 
     let vk_json = read("fixtures/groth16-setup/outer_vk.json");
-    let outer = OuterProof::from_json(&read("fixtures/groth16-outer-proof.json")).unwrap();
+    let outer =
+        OuterProof::from_json(&read("fixtures/outer-proofs/risc0-groth16-outer-proof.json"))
+            .unwrap();
 
     let project = build_validator(&Risc0ValidatorRequest {
         receipt: &receipt,

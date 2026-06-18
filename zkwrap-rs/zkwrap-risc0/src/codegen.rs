@@ -146,7 +146,10 @@ mod tests {
     fn baked_inputs_match_outer_proof() {
         let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
         let proof = OuterProof::from_json(
-            &std::fs::read_to_string(repo_path("fixtures/groth16-outer-proof.json")).unwrap(),
+            &std::fs::read_to_string(repo_path(
+                "fixtures/outer-proofs/risc0-groth16-outer-proof.json",
+            ))
+            .unwrap(),
         )
         .unwrap();
 

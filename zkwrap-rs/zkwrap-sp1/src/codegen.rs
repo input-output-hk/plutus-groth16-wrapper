@@ -90,15 +90,17 @@ mod tests {
             .join(rel)
     }
 
-    fn hexf(rel: &str) -> String {
-        hex::encode(std::fs::read(repo_path(rel)).unwrap())
-    }
-
+    /// The codegen meta as `canonicalize` would emit it, sourced from the
+    /// committed SP1 manifest (`sp1_vkey_hash`, `exit_code_hex`, `vk_root_hex`).
     fn test_codegen() -> Value {
+        let m: Value = serde_json::from_slice(
+            &std::fs::read(repo_path("fixtures/sp1-hello-world/manifest.json")).unwrap(),
+        )
+        .unwrap();
         serde_json::json!({
-            "sp1_program_vkey_hash": hexf("fixtures/sp1-hello-world/vkey_hash.bin"),
-            "exit_code": hexf("fixtures/canonical-inner/sp1-hello-world/exit_code.bin"),
-            "vk_root": hexf("fixtures/canonical-inner/sp1-hello-world/vk_root.bin"),
+            "sp1_program_vkey_hash": m["sp1_vkey_hash"].as_str().unwrap().trim_start_matches("0x"),
+            "exit_code": m["exit_code_hex"].as_str().unwrap(),
+            "vk_root": m["vk_root_hex"].as_str().unwrap(),
         })
     }
 
@@ -127,7 +129,10 @@ mod tests {
     fn baked_consts_match_outer_proof() {
         let wiring = Sp1Codegen.wiring(&test_codegen()).unwrap();
         let proof = OuterProof::from_json(
-            &std::fs::read_to_string(repo_path("fixtures/sp1-outer-proof.json")).unwrap(),
+            &std::fs::read_to_string(repo_path(
+                "fixtures/outer-proofs/sp1-groth16-outer-proof.json",
+            ))
+            .unwrap(),
         )
         .unwrap();
         assert_int_const_matches(&wiring.consts, "sp1_program_vkey_hash", &proof.inputs[0]);
