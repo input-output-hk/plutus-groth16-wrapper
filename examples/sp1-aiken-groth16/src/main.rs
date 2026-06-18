@@ -63,11 +63,9 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("\n[2/4] canonicalize: SP1 proof → CanonicalInnerProof (ark-groth16 verify) …");
     let canonical = canonicalize(&proof.proof, &public_values)?;
     let n_real = canonical.proof.public_inputs.len();
-    // proof_nonce (public input 4) is per-proof; it rides in the validator redeemer.
-    let proof_nonce = canonical.proof.public_inputs[4].0;
     println!(
-        "      ✔ n_real = {n_real}; baked consts extracted (vkey_hash={})",
-        canonical.codegen["vkey_hash"].as_str().unwrap_or("?")
+        "      ✔ n_real = {n_real}; baked consts extracted (sp1_program_vkey_hash={})",
+        canonical.codegen["sp1_program_vkey_hash"].as_str().unwrap_or("?")
     );
 
     // --- [3] wrap: canonical inner proof → BLS12-381 outer proof (gnark) ------
@@ -88,7 +86,6 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         outer_proof: &outer,
         outer_vk_json: &vk_json,
         public_values: &public_values,
-        proof_nonce: &proof_nonce,
         project_name: "zkwrap/sp1_groth16",
     })?;
 

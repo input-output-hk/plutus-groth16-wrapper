@@ -1,8 +1,8 @@
 //! The inner-layer half of the SP1 plugin: ships the generic, constant-free
 //! inner-layer source (`sp1.ak`) and implements [`InnerCodegen`], turning the
 //! canonical inner proof's `meta.json.codegen` section (the per-program/version
-//! `vkey_hash`, `exit_code`, `vk_root`) into the wiring the Composer bakes into
-//! `validators/verify.ak`.
+//! `sp1_program_vkey_hash`, `exit_code`, `vk_root`) into the wiring the Composer
+//! bakes into `validators/verify.ak`.
 
 use serde_json::Value;
 use zkwrap_core::{CodegenError, InnerCodegen, InnerWiring, RawParam};
@@ -37,12 +37,15 @@ impl InnerCodegen for Sp1Codegen {
 
     fn wiring(&self, codegen: &Value) -> Result<InnerWiring, CodegenError> {
         // Baked, as BN254 Fr `Int`s: inputs[0]=vkey_hash, [2]=exit_code, [3]=vk_root.
-        let vkey_hash = hex_field(codegen, "vkey_hash", 32)?;
+        let program_vkey_hash = hex_field(codegen, "sp1_program_vkey_hash", 32)?;
         let exit_code = hex_field(codegen, "exit_code", 32)?;
         let vk_root = hex_field(codegen, "vk_root", 32)?;
 
         let consts = vec![
-            format!("const vkey_hash: Int = 0x{}", hex::encode(&vkey_hash)),
+            format!(
+                "const sp1_program_vkey_hash: Int = 0x{}",
+                hex::encode(&program_vkey_hash)
+            ),
             format!("const exit_code: Int = 0x{}", hex::encode(&exit_code)),
             format!("const vk_root: Int = 0x{}", hex::encode(&vk_root)),
         ];
@@ -54,8 +57,9 @@ impl InnerCodegen for Sp1Codegen {
                 RawParam::new("public_values", "ByteArray"),
                 RawParam::new("proof_nonce", "ByteArray"),
             ],
-            call_expr: "sp1.real_inputs(public_values, proof_nonce, vkey_hash, exit_code, vk_root)"
-                .to_string(),
+            call_expr:
+                "sp1.real_inputs(public_values, proof_nonce, sp1_program_vkey_hash, exit_code, vk_root)"
+                    .to_string(),
         })
     }
 }
@@ -92,7 +96,7 @@ mod tests {
 
     fn test_codegen() -> Value {
         serde_json::json!({
-            "vkey_hash": hexf("fixtures/sp1-hello-world/vkey_hash.bin"),
+            "sp1_program_vkey_hash": hexf("fixtures/sp1-hello-world/vkey_hash.bin"),
             "exit_code": hexf("fixtures/canonical-inner/sp1-hello-world/exit_code.bin"),
             "vk_root": hexf("fixtures/canonical-inner/sp1-hello-world/vk_root.bin"),
         })
@@ -117,8 +121,8 @@ mod tests {
         );
     }
 
-    /// The baked version-constant inputs (vkey_hash=[0], exit_code=[2], vk_root=[3])
-    /// must equal the corresponding slots of the outer proof.
+    /// The baked version-constant inputs (program vkey hash=[0], exit_code=[2],
+    /// vk_root=[3]) must equal the corresponding slots of the outer proof.
     #[test]
     fn baked_consts_match_outer_proof() {
         let wiring = Sp1Codegen.wiring(&test_codegen()).unwrap();
@@ -126,7 +130,7 @@ mod tests {
             &std::fs::read_to_string(repo_path("fixtures/sp1-outer-proof.json")).unwrap(),
         )
         .unwrap();
-        assert_int_const_matches(&wiring.consts, "vkey_hash", &proof.inputs[0]);
+        assert_int_const_matches(&wiring.consts, "sp1_program_vkey_hash", &proof.inputs[0]);
         assert_int_const_matches(&wiring.consts, "exit_code", &proof.inputs[2]);
         assert_int_const_matches(&wiring.consts, "vk_root", &proof.inputs[3]);
     }
@@ -143,7 +147,7 @@ mod tests {
         );
         assert_eq!(
             wiring.call_expr,
-            "sp1.real_inputs(public_values, proof_nonce, vkey_hash, exit_code, vk_root)"
+            "sp1.real_inputs(public_values, proof_nonce, sp1_program_vkey_hash, exit_code, vk_root)"
         );
         assert_eq!(wiring.consts.len(), 3);
         assert_eq!(Sp1Codegen.n_real(), 5);
@@ -154,7 +158,7 @@ mod tests {
     #[test]
     fn rejects_short_field() {
         let mut bad = test_codegen();
-        bad["vkey_hash"] = serde_json::json!("0034");
+        bad["sp1_program_vkey_hash"] = serde_json::json!("0034");
         assert!(matches!(
             Sp1Codegen.wiring(&bad),
             Err(CodegenError::Meta(_))

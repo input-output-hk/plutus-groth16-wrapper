@@ -53,8 +53,6 @@ fn factory_emits_aiken_check_passing_project() {
         groth16_vkey_hash: proof_bytes[0..32].try_into().unwrap(),
     });
     let canonical = canonicalize(&sp1_proof, &public_values).unwrap();
-    // proof_nonce is public input 4 of the canonical bundle.
-    let proof_nonce = canonical.proof.public_inputs[4].0;
 
     let vk_json = read("fixtures/groth16-setup/outer_vk.json");
     let outer = OuterProof::from_json(&read("fixtures/sp1-outer-proof.json")).unwrap();
@@ -64,7 +62,6 @@ fn factory_emits_aiken_check_passing_project() {
         outer_proof: &outer,
         outer_vk_json: &vk_json,
         public_values: &public_values,
-        proof_nonce: &proof_nonce,
         project_name: "zkwrap/sp1_groth16",
     })
     .unwrap();
@@ -83,7 +80,7 @@ fn factory_emits_aiken_check_passing_project() {
             "{name}.ak has unrendered holes"
         );
     }
-    assert!(validator.contains("const vkey_hash: Int = 0x00748c3f"));
+    assert!(validator.contains("const sp1_program_vkey_hash: Int = 0x00748c3f"));
     assert!(validator.contains("const vk_root: Int = 0x"));
 
     // Materialize under the (gitignored) target dir for inspection + aiken check.

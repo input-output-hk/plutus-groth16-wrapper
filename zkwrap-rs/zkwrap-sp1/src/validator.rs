@@ -22,7 +22,7 @@ use crate::{Canonicalized, Sp1Codegen};
 /// Inputs to [`build_validator`]. All borrowed — the host already holds each.
 pub struct Sp1ValidatorRequest<'a> {
     /// The canonical bundle from [`canonicalize`](crate::canonicalize); its
-    /// `codegen` section (`vkey_hash`/`exit_code`/`vk_root`) drives the wiring.
+    /// `codegen` section (`sp1_program_vkey_hash`/`exit_code`/`vk_root`) drives the wiring.
     pub canonical: &'a Canonicalized,
     /// The outer proof from the prover. Its `backend` id selects the outer layer.
     pub outer_proof: &'a OuterProof,
@@ -31,8 +31,6 @@ pub struct Sp1ValidatorRequest<'a> {
     /// The SP1 public values (the bytes the guest committed). The generated SP1
     /// tests bind the `committed_values_digest` derivation against these.
     pub public_values: &'a [u8],
-    /// The per-proof `proof_nonce` (32-byte big-endian, public input 4).
-    pub proof_nonce: &'a [u8],
     /// Aiken project name, `namespace/name` form (e.g. `"zkwrap/sp1_groth16"`).
     pub project_name: &'a str,
 }
@@ -65,7 +63,8 @@ pub fn build_validator(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, Bu
 fn build_groth16(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, BuildValidatorError> {
     let backend = Groth16Backend;
     let public_values_hex = hex::encode(req.public_values);
-    let proof_nonce_hex = hex::encode(req.proof_nonce);
+    // proof_nonce is public input 4 of the canonical bundle (see `canonicalize`);
+    let proof_nonce_hex = hex::encode(req.canonical.proof.public_inputs[4].0);
     let tests = groth16_tests(
         &backend,
         req.outer_proof,
@@ -87,7 +86,7 @@ fn build_groth16(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, BuildVal
 /// The standard positive + tamper-negative suite for a Groth16 outer proof.
 /// The outer-layer tests use the universal outer ABI
 /// (`groth16.verify(<proof…>, inner_vk_hash, inputs)`); the SP1 tests reference
-/// the consts the inner wiring bakes (`vkey_hash`/`exit_code`/`vk_root`) and the
+/// the consts the inner wiring bakes (`sp1_program_vkey_hash`/`exit_code`/`vk_root`) and the
 /// `public_values` + `proof_nonce` redeemer fields.
 fn groth16_tests(
     outer: &Groth16Backend,
@@ -174,7 +173,7 @@ fn groth16_tests(
         TestBlock::pass(
             "sp1_inputs_match_proof",
             format!(
-                "{inner_mod}.real_inputs({}, {}, vkey_hash, exit_code, vk_root) == {reals}",
+                "{inner_mod}.real_inputs({}, {}, sp1_program_vkey_hash, exit_code, vk_root) == {reals}",
                 ba(public_values_hex),
                 ba(proof_nonce_hex)
             ),

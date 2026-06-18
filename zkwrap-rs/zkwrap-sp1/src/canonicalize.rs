@@ -154,7 +154,7 @@ pub fn canonicalize(
     // The per-program codegen section the Composer bakes as consts. `proof_nonce`
     // is per-proof, so it is NOT here — it rides in the redeemer with `public_values`.
     let codegen = serde_json::json!({
-        "vkey_hash": hex::encode(vkey_hash),
+        "sp1_program_vkey_hash": hex::encode(vkey_hash),
         "exit_code": hex::encode(exit_code),
         "vk_root": hex::encode(vk_root),
     });

@@ -1,12 +1,12 @@
 // Inner layer — SP1 (v6.x) inner-system scaffolding.
 //
 // VENDORED VERBATIM by zkwrap-core's Composer: generic and constant-free across
-// guest programs. Per-program / per-version values (vkey_hash, exit_code,
-// vk_root) arrive as baked `Int` parameters; per-proof values (public_values,
-// proof_nonce) arrive as redeemer `ByteArray`s.
+// guest programs. Per-program / per-version values (sp1_program_vkey_hash,
+// exit_code, vk_root) arrive as baked `Int` parameters; per-proof values
+// (public_values, proof_nonce) arrive as redeemer `ByteArray`s.
 //
 // SP1 v6.1.0's five BN254 public inputs are:
-//   inputs[0] = vkey_hash                — program identity (baked)
+//   inputs[0] = sp1_program_vkey_hash    — program identity, SP1's `vkey_hash` (baked)
 //   inputs[1] = committed_values_digest  — derived on-chain from public_values
 //   inputs[2] = exit_code                — guest exit code (baked; 0 = success)
 //   inputs[3] = vk_root                  — recursion-VK root, version constant (baked)
@@ -34,12 +34,12 @@ pub fn committed_values_digest(public_values: ByteArray) -> Int {
 pub fn real_inputs(
   public_values: ByteArray,
   proof_nonce: ByteArray,
-  vkey_hash: Int,
+  sp1_program_vkey_hash: Int,
   exit_code: Int,
   vk_root: Int,
 ) -> List<Int> {
   [
-    vkey_hash,
+    sp1_program_vkey_hash,
     committed_values_digest(public_values),
     exit_code,
     vk_root,

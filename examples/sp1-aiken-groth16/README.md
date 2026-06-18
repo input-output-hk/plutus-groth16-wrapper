@@ -92,7 +92,6 @@ let project = build_validator(&Sp1ValidatorRequest {
     outer_proof: &outer,
     outer_vk_json: &vk_json,
     public_values: proof.public_values.as_slice(),
-    proof_nonce: &canonical.proof.public_inputs[4].0,
     project_name: "zkwrap/sp1_groth16",
 })?;
 project.write_to(&out_dir)?;  // writes aiken.toml, lib/, validators/, test/
@@ -100,7 +99,7 @@ project.write_to(&out_dir)?;  // writes aiken.toml, lib/, validators/, test/
 
 The generated Aiken project is left under `generated/sp1-verifier/` for
 inspection — `validators/verify.ak` is the deployable validator, with the
-`vkey_hash` constant and the outer VK baked in.
+`sp1_program_vkey_hash` constant and the outer VK baked in.
 
 ## Notes
 
