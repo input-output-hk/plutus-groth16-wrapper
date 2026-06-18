@@ -45,3 +45,55 @@ jobs:
           workspaces: zkwrap-rs
       - name: Test (release)
         run: cargo test --release --locked --workspace
+
+  # ---------------------------------------------------------------------------
+  # Live end-to-end example run (prove -> wrap -> aiken check). Heavy (zkVM
+  # toolchain, multi-GB circuit artifacts, ~1 GB outer PK, CPU proving) — nightly
+  # only.
+  # ---------------------------------------------------------------------------
+  run-examples:
+    name: "Example (live: RISC Zero)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          df -h /
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: zkwrap-gnark/go.mod
+          cache-dependency-path: zkwrap-gnark/go.sum
+
+      - name: Build gnark prover
+        working-directory: zkwrap-gnark
+        run: |
+          go build -o /tmp/zkwrap-gnark ./cmd/zkwrap-gnark
+          echo "ZKWRAP_GNARK_BIN=/tmp/zkwrap-gnark" >> "$GITHUB_ENV"
+
+      # The universal outer setup (same MAX_INPUTS=8 circuit for every inner system).
+      - name: Generate outer trusted setup (MAX_INPUTS=8)
+        run: |
+          /tmp/zkwrap-gnark unsafe-setup --max-inputs 8 --out "$HOME/zkwrap-setup"
+          echo "ZKWRAP_SETUP_DIR=$HOME/zkwrap-setup" >> "$GITHUB_ENV"
+
+      - name: Install aiken (pinned to the generated project's compiler)
+        run: |
+          curl -sSfL https://install.aiken-lang.org | bash
+          echo "$HOME/.aiken/bin" >> "$GITHUB_PATH"
+          "$HOME/.aiken/bin/aikup" install v1.1.22
+
+      - name: Install RISC Zero toolchain
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+          "$HOME/.risc0/bin/rzup" install
+
+      # Docker (preinstalled) runs RISC Zero's STARK->SNARK step.
+      - name: RISC Zero example (prove -> wrap -> aiken check)
+        working-directory: examples/risc0-aiken-groth16
+        run: cargo run --release

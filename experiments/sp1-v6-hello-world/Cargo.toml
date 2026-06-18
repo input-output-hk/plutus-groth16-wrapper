@@ -1,0 +1,15 @@
+[package]
+name = "sp1-v6-hello-world"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-sdk = { version = "6.2.4", features = ["native-gnark", "blocking"] }
+serde_json = "1"
+hex = "0.4"
+dirs = "5"
+# Build OpenSSL from source so no system libssl-dev / pkg-config is needed.
+openssl = { version = "0.10", features = ["vendored"] }
+
+[build-dependencies]
+sp1-build = "6.2.4"
