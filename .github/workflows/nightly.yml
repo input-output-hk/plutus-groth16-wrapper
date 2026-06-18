@@ -64,6 +64,10 @@ jobs:
                       /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
           df -h /
 
+      # sp1-prover-types' build script (prost-build) needs the protoc binary.
+      - name: Install protobuf-compiler (sp1-prover-types build dep)
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: zkwrap-gnark/go.mod
