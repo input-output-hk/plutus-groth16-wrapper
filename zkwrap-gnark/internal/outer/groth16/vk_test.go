@@ -1,4 +1,4 @@
-package outer
+package groth16
 
 import (
 	"bytes"
