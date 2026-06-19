@@ -1,0 +1,7 @@
+# Go build outputs
+/export/export
+/refverify/refverify
+/gen-fixture/gen-fixture
+# Aiken build artifacts
+/aiken/build/
+/aiken/artifacts/
