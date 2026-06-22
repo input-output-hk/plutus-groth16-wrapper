@@ -5,11 +5,12 @@
 //!
 //! Schema: `docs/schemas/plonk-outer-proof-artifacts.md`. Unlike Groth16, the
 //! PLONK backend does **no `MAX_INPUTS` padding** — `num_inputs` is the inner
-//! system's exact `n_real`. Every G1 point carries both a `c` (48-byte
+//! system's exact `n_real`. Each *proof* G1 point carries both a `c` (48-byte
 //! compressed, for on-chain EC ops) and a `u` (96-byte uncompressed gnark
-//! `RawBytes`, the exact SHA-256 Fiat-Shamir transcript preimage) form; the
-//! transcript-bound VK points carry the uncompressed form in the parallel
-//! `*_u` fields.
+//! `RawBytes`, the exact SHA-256 Fiat-Shamir transcript preimage) form. The
+//! transcript-bound *VK* points are stored once, uncompressed (the codegen
+//! bakes them as the transcript preimage; the compressed form is derived
+//! on-chain); `kzg.g1`/`g2_*` stay compressed.
 
 use serde::Deserialize;
 
@@ -38,9 +39,10 @@ pub struct KzgVk {
 
 /// The outer PLONK/BLS12-381 verifying key (`outer_vk.json`).
 ///
-/// The transcript-bound G1 points (`s`, `ql..qk`, `qcp`) appear in **both**
-/// compressed (for EC ops) and uncompressed (for the SHA-256 transcript) form;
-/// the codegen bakes both as Aiken module constants.
+/// The transcript-bound G1 points (`s`, `ql..qk`, `qcp`) are stored in their
+/// **uncompressed** (96-byte gnark RawBytes) form — the SHA-256 transcript
+/// preimage the codegen bakes directly. `kzg.g1`/`g2_*` are
+/// not transcript-bound and stay compressed.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PlonkVk {
     pub backend: String,
@@ -59,24 +61,15 @@ pub struct PlonkVk {
     /// Coset generator (gnark default `7`), 32-byte BE hex.
     pub coset_shift: String,
     pub kzg: KzgVk,
-    /// Permutation commitments `[S₁, S₂, S₃]`, compressed.
+    /// Permutation commitments `[S₁, S₂, S₃]`, uncompressed (transcript preimage).
     pub s: Vec<String>,
-    /// Uncompressed `S` forms (transcript preimage).
-    pub s_u: Vec<String>,
     pub ql: String,
-    pub ql_u: String,
     pub qr: String,
-    pub qr_u: String,
     pub qm: String,
-    pub qm_u: String,
     pub qo: String,
-    pub qo_u: String,
     pub qk: String,
-    pub qk_u: String,
-    /// Commitment-selector commitments, one per BSB22 commitment, compressed.
+    /// Commitment-selector commitments, one per BSB22 commitment, uncompressed.
     pub qcp: Vec<String>,
-    /// Uncompressed `Qcp` forms.
-    pub qcp_u: Vec<String>,
     /// Constraint (wire) index of each BSB22 commitment (locates its Lagrange
     /// point in the public-input fold).
     pub commitment_constraint_indexes: Vec<u64>,
@@ -99,18 +92,16 @@ impl PlonkVk {
                 self.backend
             )));
         }
-        if self.s.len() != 3 || self.s_u.len() != 3 {
+        if self.s.len() != 3 {
             return Err(OuterParseError::Shape(format!(
-                "expected 3 permutation commitments, found s={} s_u={}",
-                self.s.len(),
-                self.s_u.len()
+                "expected 3 permutation commitments, found {}",
+                self.s.len()
             )));
         }
-        if self.qcp.len() != 1 || self.qcp_u.len() != 1 {
+        if self.qcp.len() != 1 {
             return Err(OuterParseError::Shape(format!(
-                "expected exactly 1 BSB22 commitment selector, found qcp={} qcp_u={}",
-                self.qcp.len(),
-                self.qcp_u.len()
+                "expected exactly 1 BSB22 commitment selector, found {}",
+                self.qcp.len()
             )));
         }
         if self.commitment_constraint_indexes.len() != self.qcp.len() {
@@ -274,11 +265,10 @@ mod tests {
         assert_eq!(vk.num_inputs, 5);
         assert_eq!(vk.nb_public_variables, 6); // 1 + num_inputs
         assert_eq!(vk.s.len(), 3);
-        assert_eq!(vk.s_u.len(), 3);
         assert_eq!(vk.qcp.len(), 1);
-        // Compressed G1 = 48 bytes = 96 hex; uncompressed = 96 bytes = 192 hex.
-        assert_eq!(vk.ql.len(), 96);
-        assert_eq!(vk.ql_u.len(), 192);
+        // Transcript-bound VK points are uncompressed: 96 bytes = 192 hex.
+        assert_eq!(vk.ql.len(), 192);
+        assert_eq!(vk.s[0].len(), 192);
     }
 
     #[test]

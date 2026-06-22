@@ -48,8 +48,9 @@ const z_pad: ByteArray =
 
 // =====================================================================
 // PLONK outer VK constants (baked from outer_vk.json).
-//   *_c = 48-byte compressed (EC ops); *_u = 96-byte gnark RawBytes
-//   (the exact SHA-256 transcript preimage).
+//
+// The transcript-bound VK points are baked only in their 96-byte gnark
+// RawBytes (`*_u`) form — the exact SHA-256 transcript preimage
 // =====================================================================
 const vk_size: Int = {{ size }}
 const vk_nb_public: Int = {{ nb_public }}
@@ -62,23 +63,14 @@ const kzg_g1: ByteArray = #"{{ kzg_g1 }}"
 const kzg_g2_0: ByteArray = #"{{ kzg_g2_0 }}"
 const kzg_g2_1: ByteArray = #"{{ kzg_g2_1 }}"
 
-const s0_c: ByteArray = #"{{ s0_c }}"
 const s0_u: ByteArray = #"{{ s0_u }}"
-const s1_c: ByteArray = #"{{ s1_c }}"
 const s1_u: ByteArray = #"{{ s1_u }}"
-const s2_c: ByteArray = #"{{ s2_c }}"
 const s2_u: ByteArray = #"{{ s2_u }}"
-const ql_c: ByteArray = #"{{ ql_c }}"
 const ql_u: ByteArray = #"{{ ql_u }}"
-const qr_c: ByteArray = #"{{ qr_c }}"
 const qr_u: ByteArray = #"{{ qr_u }}"
-const qm_c: ByteArray = #"{{ qm_c }}"
 const qm_u: ByteArray = #"{{ qm_u }}"
-const qo_c: ByteArray = #"{{ qo_c }}"
 const qo_u: ByteArray = #"{{ qo_u }}"
-const qk_c: ByteArray = #"{{ qk_c }}"
 const qk_u: ByteArray = #"{{ qk_u }}"
-const qcp0_c: ByteArray = #"{{ qcp0_c }}"
 const qcp0_u: ByteArray = #"{{ qcp0_u }}"
 
 // =====================================================================
@@ -418,12 +410,12 @@ pub fn verify(
 
   let lin_digest_pt =
     smul(g1(bsb0_c), qcp_eval)
-      |> gadd(smul(g1(ql_c), l))
-      |> gadd(smul(g1(qr_c), r))
-      |> gadd(smul(g1(qm_c), rl))
-      |> gadd(smul(g1(qo_c), o))
-      |> gadd(smul(g1(qk_c), one))
-      |> gadd(smul(g1(s2_c), sv1))
+      |> gadd(smul(g1_from_u(ql_u), l))
+      |> gadd(smul(g1_from_u(qr_u), r))
+      |> gadd(smul(g1_from_u(qm_u), rl))
+      |> gadd(smul(g1_from_u(qo_u), o))
+      |> gadd(smul(g1_from_u(qk_u), one))
+      |> gadd(smul(g1_from_u(s2_u), sv1))
       |> gadd(smul(g1(z_c), coeff_z))
       |> gadd(smul(g1(h0_c), zh))
       |> gadd(smul(g1(h1_c), zeta_n2_zh))
@@ -459,9 +451,9 @@ pub fn verify(
       |> gadd(smul(g1(lro0_c), gk1))
       |> gadd(smul(g1(lro1_c), gk2))
       |> gadd(smul(g1(lro2_c), gk3))
-      |> gadd(smul(g1(s0_c), gk4))
-      |> gadd(smul(g1(s1_c), gk5))
-      |> gadd(smul(g1(qcp0_c), gk6))
+      |> gadd(smul(g1_from_u(s0_u), gk4))
+      |> gadd(smul(g1_from_u(s1_u), gk5))
+      |> gadd(smul(g1_from_u(qcp0_u), gk6))
 
   let folded_eval =
     scalar.from_bytes(cv_lin)

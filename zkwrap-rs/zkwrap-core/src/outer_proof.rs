@@ -7,9 +7,12 @@
 //! peeks the `backend` field and parses into the matching variant; each backend
 //! owns its concrete artifact type.
 
-use crate::outer_backends::gnark_groth16::artifacts::Groth16OuterProof;
-use crate::outer_backends::gnark_plonk::artifacts::PlonkOuterProof;
-use crate::outer_backends::gnark_plonk::artifacts::BACKEND_ID as PLONK_BACKEND_ID;
+use crate::outer_backends::gnark_groth16::artifacts::{
+    Groth16OuterProof, BACKEND_ID as GROTH16_BACKEND_ID,
+};
+use crate::outer_backends::gnark_plonk::artifacts::{
+    PlonkOuterProof, BACKEND_ID as PLONK_BACKEND_ID,
+};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -39,8 +42,6 @@ pub enum OuterDispatchError {
     #[error(transparent)]
     Parse(#[from] OuterParseError),
 }
-
-const GROTH16_BACKEND_ID: &str = "gnark-groth16-bls12381";
 
 impl OuterProof {
     /// Parse `outer_proof.json`, dispatching on its `backend` field.

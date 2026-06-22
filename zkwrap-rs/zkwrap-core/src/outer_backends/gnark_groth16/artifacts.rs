@@ -11,6 +11,9 @@
 use serde::Deserialize;
 use thiserror::Error;
 
+/// The Groth16 outer-backend id, recorded in both artifacts' `backend` field.
+pub const BACKEND_ID: &str = "gnark-groth16-bls12381";
+
 /// A Pedersen (Bowe–Gabizon) commitment verifying key: two compressed G2 points.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CommitmentKey {

@@ -1,9 +1,10 @@
 //! The gnark PLONK/BLS12-381 outer backend — the outer-layer proving engine.
 //!
 //! Renders the generic `plonk.ak` verifier with the setup-bound crypto (PLONK
-//! VK points + domain sizes, in both compressed and uncompressed form) baked
-//! into `verify` from a [`PlonkVk`]. The proof fields arrive as redeemer
-//! parameters; see [`PROOF_PARAMS`].
+//! VK points + domain sizes) baked into `verify` from a [`PlonkVk`]. The
+//! transcript-bound VK points are baked in their uncompressed (transcript-
+//! preimage) form; the verifier derives the compressed form on-chain. The proof
+//! fields arrive as redeemer parameters; see [`PROOF_PARAMS`].
 
 /// The PLONK outer-proof artifact schema (`outer_vk.json` / `outer_proof.json`).
 pub mod artifacts;
@@ -81,24 +82,15 @@ impl OuterCodegen for PlonkBackend {
                 kzg_g1 => vk.kzg.g1,
                 kzg_g2_0 => vk.kzg.g2_0,
                 kzg_g2_1 => vk.kzg.g2_1,
-                s0_c => vk.s[0],
-                s0_u => vk.s_u[0],
-                s1_c => vk.s[1],
-                s1_u => vk.s_u[1],
-                s2_c => vk.s[2],
-                s2_u => vk.s_u[2],
-                ql_c => vk.ql,
-                ql_u => vk.ql_u,
-                qr_c => vk.qr,
-                qr_u => vk.qr_u,
-                qm_c => vk.qm,
-                qm_u => vk.qm_u,
-                qo_c => vk.qo,
-                qo_u => vk.qo_u,
-                qk_c => vk.qk,
-                qk_u => vk.qk_u,
-                qcp0_c => vk.qcp[0],
-                qcp0_u => vk.qcp_u[0],
+                s0_u => vk.s[0],
+                s1_u => vk.s[1],
+                s2_u => vk.s[2],
+                ql_u => vk.ql,
+                qr_u => vk.qr,
+                qm_u => vk.qm,
+                qo_u => vk.qo,
+                qk_u => vk.qk,
+                qcp0_u => vk.qcp[0],
             })
             .map_err(|e| CodegenError::Render(e.to_string()))?;
         Ok(OuterWiring {
@@ -124,10 +116,10 @@ mod tests {
     #[test]
     fn renders_baked_vk_constants() {
         let out = PlonkBackend.render(&fixture_vk_json()).unwrap().source;
-        // VK points are baked, both compressed and uncompressed.
-        assert!(out.contains("const ql_c: ByteArray = #\""));
+        // Transcript-bound VK points are baked only in uncompressed form
         assert!(out.contains("const ql_u: ByteArray = #\""));
         assert!(out.contains("const qcp0_u: ByteArray = #\""));
+        assert!(out.contains("g1_from_u(ql_u)"));
         // Domain sizes baked from the VK, not hardcoded from the tiny spike.
         assert!(out.contains("const vk_size: Int = 4194304"));
         assert!(out.contains("const vk_nb_public: Int = 6"));
