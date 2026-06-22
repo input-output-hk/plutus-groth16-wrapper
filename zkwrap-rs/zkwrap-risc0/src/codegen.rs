@@ -154,9 +154,9 @@ mod tests {
         .unwrap();
 
         // Version-constant reals: inputs[0], inputs[1], inputs[4].
-        assert_int_const_matches(&wiring.consts, "control_root_0", &proof.inputs[0]);
-        assert_int_const_matches(&wiring.consts, "control_root_1", &proof.inputs[1]);
-        assert_int_const_matches(&wiring.consts, "bn254_control_id", &proof.inputs[4]);
+        assert_int_const_matches(&wiring.consts, "control_root_0", &proof.inputs()[0]);
+        assert_int_const_matches(&wiring.consts, "control_root_1", &proof.inputs()[1]);
+        assert_int_const_matches(&wiring.consts, "bn254_control_id", &proof.inputs()[4]);
     }
 
     #[test]

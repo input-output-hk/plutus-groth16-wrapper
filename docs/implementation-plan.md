@@ -9,13 +9,16 @@ Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Eac
 > proving the on-chain verifier tractable. The PLONK wire format is pinned in
 > `docs/schemas/plonk-outer-proof-artifacts.md` (SHA-256 transcript over
 > uncompressed G1, BSB22 hash-to-field DST `"BSB22-Plonk"`, Solidity-style
-> deterministic batch λ, supplied-and-bound `lin_digest`). Next: **PR1** —
-> `zkwrap-gnark --backend plonk` (Go PLONK serialization + CLI, schema-first);
-> then **PR2** — Rust `PlonkBackend` + `plonk.ak` codegen + acceptance tests,
-> folding in the deferred shared outer-test-generator extraction. The outer-layer
-> swap leaves the wrapper circuit, public-input layout, `InnerVKHash` (Poseidon2),
-> and both inner layers untouched. The transcript-hash and unsafe-SRS choices are
-> architecture-affecting and want an ADR (flagged, not yet written).
+> deterministic batch λ, supplied-and-bound `lin_digest`). **PR1 done** —
+> `zkwrap-gnark --backend plonk` (Go PLONK serialization + CLI, schema-first).
+> **PR2 done** — Rust `PlonkBackend` + `plonk.ak` codegen, the backend-agnostic
+> `OuterProof` enum, the shared outer-test-generator extraction, and per-system
+> PLONK fixtures; both RISC Zero and SP1 generate validators that `aiken check`
+> green on the real PLONK proof. The outer-layer swap leaves the wrapper circuit,
+> public-input layout, `InnerVKHash` (Poseidon2), and both inner layers
+> untouched. Still open: the transcript-hash / unsafe-SRS choices and the
+> exact-`num_inputs` divergence from ADR-0002 are architecture-affecting and want
+> an ADR (flagged, not yet written).
 >
 > _Prior phases (done): Phase 5 SP1 plugin landed off-chain, targeting **current
 > SP1 (sp1-sdk 6.2.4, circuit v6.1.0)**: `zkwrap-sp1` mirrors the RISC Zero plugin

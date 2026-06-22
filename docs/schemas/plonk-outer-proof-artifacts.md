@@ -113,13 +113,20 @@ given the circuit source and `num_inputs`, so it is a build artifact, not a secr
     "g2_0": "<96 bytes, compressed BLS12-381 G2, hex>",
     "g2_1": "<96 bytes, compressed BLS12-381 G2, hex>"
   },
-  "s":   ["<48B compressed G1 hex>", "<48B compressed G1 hex>", "<48B compressed G1 hex>"],
-  "ql":  "<48 bytes, compressed BLS12-381 G1, hex>",
-  "qr":  "<48 bytes, compressed BLS12-381 G1, hex>",
-  "qm":  "<48 bytes, compressed BLS12-381 G1, hex>",
-  "qo":  "<48 bytes, compressed BLS12-381 G1, hex>",
-  "qk":  "<48 bytes, compressed BLS12-381 G1, hex>",
-  "qcp": ["<48 bytes, compressed BLS12-381 G1, hex>", ...],
+  "s":    ["<48B compressed G1 hex>", "<48B compressed G1 hex>", "<48B compressed G1 hex>"],
+  "s_u":  ["<96B uncompressed G1 hex>", "<96B uncompressed G1 hex>", "<96B uncompressed G1 hex>"],
+  "ql":   "<48 bytes, compressed BLS12-381 G1, hex>",
+  "ql_u": "<96 bytes, uncompressed BLS12-381 G1, hex>",
+  "qr":   "<48 bytes, compressed BLS12-381 G1, hex>",
+  "qr_u": "<96 bytes, uncompressed BLS12-381 G1, hex>",
+  "qm":   "<48 bytes, compressed BLS12-381 G1, hex>",
+  "qm_u": "<96 bytes, uncompressed BLS12-381 G1, hex>",
+  "qo":   "<48 bytes, compressed BLS12-381 G1, hex>",
+  "qo_u": "<96 bytes, uncompressed BLS12-381 G1, hex>",
+  "qk":   "<48 bytes, compressed BLS12-381 G1, hex>",
+  "qk_u": "<96 bytes, uncompressed BLS12-381 G1, hex>",
+  "qcp":  ["<48 bytes, compressed BLS12-381 G1, hex>", ...],
+  "qcp_u":["<96 bytes, uncompressed BLS12-381 G1, hex>", ...],
   "commitment_constraint_indexes": [<int>, ...]
 }
 ```
@@ -137,18 +144,23 @@ given the circuit source and `num_inputs`, so it is a build artifact, not a secr
 | `kzg.g2_0`            | KZG SRS `[1]₂` (G2 generator), compressed. |
 | `kzg.g2_1`            | KZG SRS `[s]₂` (the secret-scaled G2), compressed. The two G2 points are the only pairing-side inputs; the final check is `e(folded_digest_acc, [1]₂) · e(−folded_quotient, [s]₂) == 1`. |
 | `s`                   | Permutation polynomial commitments `[S₁, S₂, S₃]`, compressed G1. (`S₃` participates in the linearized-polynomial MSM; `S₁`, `S₂` are KZG-batched openings.) |
+| `s_u`                 | The `s` points in uncompressed (96-byte gnark `RawBytes`) form — the exact transcript preimage. |
 | `ql,qr,qm,qo,qk`      | Selector commitments (left, right, multiplication, output, constant), compressed G1. |
+| `ql_u,qr_u,qm_u,qo_u,qk_u` | The selector commitments in uncompressed form (transcript preimage). |
 | `qcp`                 | Commitment-selector commitments, one per BSB22 commitment. The wrapper forces exactly **one** (`api.Commit` over the public inputs — the same mechanism that yields the Pedersen commitment in the Groth16 path), so length is `1` for the production circuit. |
+| `qcp_u`               | The `qcp` points in uncompressed form (transcript preimage). |
 | `commitment_constraint_indexes` | Constraint (wire) index of each BSB22 commitment, used to locate its Lagrange point in the public-input fold (see `nb_public_variables`). Length matches `qcp`. |
 
 **Codegen note.** Every VK G1 point that is bound into the Fiat-Shamir transcript
 (`s[0..2]`, `ql,qr,qm,qo,qk`, `qcp[]`) is hashed in **uncompressed** form (see
 Transcript). Plutus has no `G1 → uncompressed-bytes` builtin, so the Aiken
 codegen bakes both the compressed point (for EC ops) **and** its 96-byte
-uncompressed form (for the transcript) as module constants at generation time —
-reconstructed from the compressed hex via gnark's `RawBytes()`. Only the
-compressed form is stored in `outer_vk.json`; the uncompressed forms are derived
-deterministically.
+uncompressed form (for the transcript) as module constants. Because deriving the
+uncompressed form requires a curve decompression (a y-coordinate `sqrt` the Rust
+codegen would otherwise have to reimplement to match gnark byte-for-byte), the VK
+artifact carries **both** encodings directly: the compressed point in `s`/`ql`/…
+and its gnark `RawBytes()` form in the parallel `s_u`/`ql_u`/… fields. This
+mirrors how every proof-side point carries both `c` and `u`.
 
 ---
 

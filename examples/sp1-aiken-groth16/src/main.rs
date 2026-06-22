@@ -74,8 +74,8 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
     let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove(&canonical.proof)?;
     println!(
-        "      ✔ outer proof: backend={}, max_inputs={}, inner_vk_hash={}",
-        outer.backend, outer.max_inputs, outer.inner_vk_hash
+        "      ✔ outer proof: backend={}, num_inputs={}, inner_vk_hash={}",
+        outer.backend(), outer.num_inputs(), outer.inner_vk_hash()
     );
 
     // --- [4] build_validator: generate the Aiken project + aiken check --------

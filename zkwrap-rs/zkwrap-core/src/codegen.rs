@@ -32,6 +32,7 @@
 //! `n_real` list and pads to `MAX_INPUTS` with **literal zeros**
 
 pub mod composer;
+pub mod outer_tests;
 
 use serde_json::Value;
 use thiserror::Error;

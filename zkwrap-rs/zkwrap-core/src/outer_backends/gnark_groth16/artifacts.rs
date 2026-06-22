@@ -93,7 +93,7 @@ pub struct OuterProofPoints {
 
 /// A single outer proof (`outer_proof.json`).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct OuterProof {
+pub struct Groth16OuterProof {
     pub backend: String,
     pub max_inputs: usize,
     pub proof: OuterProofPoints,
@@ -103,9 +103,9 @@ pub struct OuterProof {
     pub inputs: Vec<String>,
 }
 
-impl OuterProof {
+impl Groth16OuterProof {
     pub fn from_json(s: &str) -> Result<Self, OuterParseError> {
-        let p: OuterProof = serde_json::from_str(s).map_err(OuterParseError::Json)?;
+        let p: Groth16OuterProof = serde_json::from_str(s).map_err(OuterParseError::Json)?;
         if p.inputs.len() != p.max_inputs {
             return Err(OuterParseError::Shape(format!(
                 "inputs length {} != max_inputs {}",
@@ -125,6 +125,20 @@ impl OuterProof {
             .first()
             .map(String::as_str)
             .ok_or_else(|| OuterParseError::Shape("proof has no commitments_uncompressed".into()))
+    }
+
+    /// The proof field values as raw lowercase hex, in
+    /// [`Groth16Backend::proof_params`](super::Groth16Backend) order
+    /// (`pi_a, pi_b, pi_c, commitment_uncompressed, commitment_pok`). The
+    /// validator wraps each as an Aiken `ByteArray` literal.
+    pub fn proof_field_hex(&self) -> Result<Vec<String>, OuterParseError> {
+        Ok(vec![
+            self.proof.ar.clone(),
+            self.proof.bs.clone(),
+            self.proof.krs.clone(),
+            self.commitment_uncompressed()?.to_string(),
+            self.proof.commitment_pok.clone(),
+        ])
     }
 }
 
@@ -172,7 +186,7 @@ mod tests {
 
     #[test]
     fn parses_outer_proof_fixture() {
-        let p = OuterProof::from_json(&proof_json()).unwrap();
+        let p = Groth16OuterProof::from_json(&proof_json()).unwrap();
         assert_eq!(p.backend, "gnark-groth16-bls12381");
         assert_eq!(p.max_inputs, 8);
         assert_eq!(p.inputs.len(), 8);

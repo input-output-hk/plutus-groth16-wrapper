@@ -135,9 +135,9 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        assert_int_const_matches(&wiring.consts, "sp1_program_vkey_hash", &proof.inputs[0]);
-        assert_int_const_matches(&wiring.consts, "exit_code", &proof.inputs[2]);
-        assert_int_const_matches(&wiring.consts, "vk_root", &proof.inputs[3]);
+        assert_int_const_matches(&wiring.consts, "sp1_program_vkey_hash", &proof.inputs()[0]);
+        assert_int_const_matches(&wiring.consts, "exit_code", &proof.inputs()[2]);
+        assert_int_const_matches(&wiring.consts, "vk_root", &proof.inputs()[3]);
     }
 
     #[test]

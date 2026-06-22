@@ -15,6 +15,12 @@ import (
 )
 
 // vkFile is the canonical JSON form of the PLONK outer verifying key.
+//
+// Every transcript-bound VK G1 point carries both encodings: the compressed
+// form (`s`,`ql`,… — for on-chain EC ops) and its uncompressed gnark RawBytes
+// form (`s_u`,`ql_u`,… — the exact preimage the SHA-256 Fiat-Shamir transcript
+// hashes, which Plutus cannot recompute from a point). The Aiken codegen bakes
+// both as module constants. See docs/schemas/plonk-outer-proof-artifacts.md.
 type vkFile struct {
 	Backend                     string   `json:"backend"`
 	NumInputs                   int      `json:"num_inputs"`
@@ -25,12 +31,19 @@ type vkFile struct {
 	CosetShift                  string   `json:"coset_shift"`
 	Kzg                         kzgVK    `json:"kzg"`
 	S                           []string `json:"s"`
+	Su                          []string `json:"s_u"`
 	Ql                          string   `json:"ql"`
+	Qlu                         string   `json:"ql_u"`
 	Qr                          string   `json:"qr"`
+	Qru                         string   `json:"qr_u"`
 	Qm                          string   `json:"qm"`
+	Qmu                         string   `json:"qm_u"`
 	Qo                          string   `json:"qo"`
+	Qou                         string   `json:"qo_u"`
 	Qk                          string   `json:"qk"`
+	Qku                         string   `json:"qk_u"`
 	Qcp                         []string `json:"qcp"`
+	Qcpu                        []string `json:"qcp_u"`
 	CommitmentConstraintIndexes []uint64 `json:"commitment_constraint_indexes"`
 }
 
@@ -44,12 +57,16 @@ type kzgVK struct {
 // num_inputs (= the inner system's n_real; PLONK does not pad).
 func WriteVK(w io.Writer, vk *bls12381plonk.VerifyingKey, numInputs int) error {
 	s := make([]string, len(vk.S))
+	su := make([]string, len(vk.S))
 	for i := range vk.S {
 		s[i] = outer.G1Hex(vk.S[i])
+		su[i] = outer.G1HexUncompressed(vk.S[i])
 	}
 	qcp := make([]string, len(vk.Qcp))
+	qcpu := make([]string, len(vk.Qcp))
 	for i := range vk.Qcp {
 		qcp[i] = outer.G1Hex(vk.Qcp[i])
+		qcpu[i] = outer.G1HexUncompressed(vk.Qcp[i])
 	}
 	cci := make([]uint64, len(vk.CommitmentConstraintIndexes))
 	copy(cci, vk.CommitmentConstraintIndexes)
@@ -70,12 +87,19 @@ func WriteVK(w io.Writer, vk *bls12381plonk.VerifyingKey, numInputs int) error {
 			G2_1: outer.G2Hex(vk.Kzg.G2[1]),
 		},
 		S:                           s,
+		Su:                          su,
 		Ql:                          outer.G1Hex(vk.Ql),
+		Qlu:                         outer.G1HexUncompressed(vk.Ql),
 		Qr:                          outer.G1Hex(vk.Qr),
+		Qru:                         outer.G1HexUncompressed(vk.Qr),
 		Qm:                          outer.G1Hex(vk.Qm),
+		Qmu:                         outer.G1HexUncompressed(vk.Qm),
 		Qo:                          outer.G1Hex(vk.Qo),
+		Qou:                         outer.G1HexUncompressed(vk.Qo),
 		Qk:                          outer.G1Hex(vk.Qk),
+		Qku:                         outer.G1HexUncompressed(vk.Qk),
 		Qcp:                         qcp,
+		Qcpu:                        qcpu,
 		CommitmentConstraintIndexes: cci,
 	})
 }

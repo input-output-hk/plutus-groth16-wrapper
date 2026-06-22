@@ -49,3 +49,6 @@ docs/tmp
 # the small outer_vk.json, which is committed as a test fixture.
 fixtures/groth16-setup/*
 !fixtures/groth16-setup/outer_vk.json
+# Same for the PLONK setup bundle (outer_pk.bin ~800 MB, circuit.r1cs ~95 MB).
+fixtures/plonk-setup/*
+!fixtures/plonk-setup/outer_vk.json

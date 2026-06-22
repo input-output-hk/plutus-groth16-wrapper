@@ -19,7 +19,7 @@ pub use gnark_cli_prover::GnarkCliProver;
 use std::path::PathBuf;
 
 use thiserror::Error;
-use zkwrap_core::{CanonicalInnerProof, OuterParseError, OuterProof};
+use zkwrap_core::{CanonicalInnerProof, OuterDispatchError, OuterProof};
 
 /// Produces a BLS12-381 outer proof from a canonical inner proof. The trait
 /// names only `zkwrap-core` types so backends are swappable without
@@ -42,5 +42,5 @@ pub enum ProveError {
     #[error("zkwrap-gnark prove failed (exit status {status:?}): {stderr}")]
     GnarkFailed { status: Option<i32>, stderr: String },
     #[error("parse outer proof: {0}")]
-    Parse(#[from] OuterParseError),
+    Parse(#[from] OuterDispatchError),
 }
