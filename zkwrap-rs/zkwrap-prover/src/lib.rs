@@ -19,13 +19,13 @@ pub use gnark_cli_prover::GnarkCliProver;
 use std::path::PathBuf;
 
 use thiserror::Error;
-use zkwrap_core::{CanonicalInnerProof, OuterDispatchError, OuterProof};
+use zkwrap_core::{CanonicalInnerProof, OuterParseError, OuterProof};
 
 /// Produces a BLS12-381 outer proof from a canonical inner proof. The trait
 /// names only `zkwrap-core` types so backends are swappable without
 /// touching `canonicalize` or codegen.
 pub trait Prover {
-    fn prove(&self, inner: &CanonicalInnerProof) -> Result<OuterProof, ProveError>;
+    fn prove<P: OuterProof>(&self, inner: &CanonicalInnerProof) -> Result<P, ProveError>;
 }
 
 /// Why an outer-proof attempt failed. Shared across backends — the trait's
@@ -42,5 +42,5 @@ pub enum ProveError {
     #[error("zkwrap-gnark prove failed (exit status {status:?}): {stderr}")]
     GnarkFailed { status: Option<i32>, stderr: String },
     #[error("parse outer proof: {0}")]
-    Parse(#[from] OuterDispatchError),
+    Parse(#[from] OuterParseError),
 }

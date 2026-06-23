@@ -11,6 +11,7 @@
 //! [`OuterCodegen::proof_params`]: crate::OuterCodegen::proof_params
 
 use crate::codegen::composer::TestBlock;
+use crate::{OuterParseError, OuterProof};
 
 // --- Aiken literal helpers ---------------------------------------------------
 
@@ -51,31 +52,54 @@ pub fn flip_first_byte(hex: &str) -> String {
 /// and a zero ref suffice to exercise the deployable `spend` handler.
 const MOCK_REF: &str = "OutputReference { transaction_id: #\"0000000000000000000000000000000000000000000000000000000000000000\", output_index: 0 }";
 
-/// The outer layer under test, plus the literal proof fields a plugin read from
-/// its concrete proof type (aligned with [`proof_params`], each already an
-/// Aiken literal such as `#"…"`).
-///
-/// [`proof_params`]: crate::OuterCodegen::proof_params
+/// The shared outer-layer test generator — a read-only view over a parsed
+/// [`OuterProof`] and its backend [`codegen`](crate::OuterProof::codegen),
+/// holding exactly what the generated outer-layer tests + redeemer scaffolding need.
 pub struct OuterLayer<'a> {
-    /// Outer Aiken module basename (e.g. `"groth16"` / `"plonk"`).
-    pub outer_mod: &'a str,
-    /// [`proof_params`](crate::OuterCodegen::proof_params), in order.
-    pub proof_params: &'a [&'a str],
-    /// Literal proof field values aligned with `proof_params`.
-    pub proof_lits: &'a [String],
+    /// Outer Aiken module basename (e.g. `"groth16"` / `"plonk"`), from the codegen.
+    outer_mod: &'a str,
+    /// [`proof_params`](crate::OuterCodegen::proof_params) — the field names, from the codegen.
+    proof_params: &'a [&'a str],
+    /// Proof field values (raw lowercase hex), aligned one-to-one with `proof_params`.
+    proof_param_values: Vec<String>,
     /// `inner_vk_hash`, raw lowercase hex (no `0x`).
-    pub inner_vk_hash: &'a str,
+    inner_vk_hash: &'a str,
     /// The full outer public-input vector, each a 32-byte BE Fr hex.
-    pub inputs: &'a [String],
+    inputs: &'a [String],
 }
 
-impl OuterLayer<'_> {
+impl<'a> OuterLayer<'a> {
+    /// Build the generator from a parsed proof: module name + proof-param names
+    /// come from `proof.codegen()`, the values / `inner_vk_hash` / `inputs` from
+    /// the proof itself. Fallible via [`OuterProof::proof_param_values`].
+    pub fn new(proof: &'a dyn OuterProof) -> Result<Self, OuterParseError> {
+        let codegen = proof.codegen();
+        Ok(Self {
+            outer_mod: codegen.module_name(),
+            proof_params: codegen.proof_params(),
+            proof_param_values: proof.proof_param_values()?,
+            inner_vk_hash: proof.inner_vk_hash(),
+            inputs: proof.inputs(),
+        })
+    }
+
+    /// The full outer public-input vector (each a 32-byte BE Fr hex) — what the
+    /// inner-system tests slice for their `real_inputs` checks.
+    pub fn inputs(&self) -> &[String] {
+        self.inputs
+    }
+
     /// `<mod>.verify(proof…, <vkh>, <ins>)` with literal vk-hash / inputs exprs.
     fn verify_call(&self, vkh: &str, ins: &str) -> String {
+        let proof = self
+            .proof_param_values
+            .iter()
+            .map(|v| ba(v))
+            .collect::<Vec<_>>()
+            .join(",\n  ");
         format!(
-            "{}.verify(\n  {},\n  {vkh},\n  {ins},\n)",
-            self.outer_mod,
-            self.proof_lits.join(",\n  ")
+            "{}.verify(\n  {proof},\n  {vkh},\n  {ins},\n)",
+            self.outer_mod
         )
     }
 
@@ -103,15 +127,17 @@ impl OuterLayer<'_> {
     }
 
     /// A `Redeemer { <proof fields>, <extra inner fields> }` literal. The proof
-    /// fields are `proof_params` zipped with `proof_lits`; `extra` carries the
-    /// inner-system redeemer fields (name, Aiken literal).
-    pub fn redeemer(&self, extra: &[(&str, String)]) -> String {
+    /// fields are `proof_params` zipped with `proof_param_values`; `extra`
+    /// carries the inner-system redeemer fields as `(name, raw hex)`. Every value
+    /// (proof and extra) is wrapped as an Aiken `ByteArray` literal here.
+    pub fn redeemer(&self, extra: &[(&str, &str)]) -> String {
         let proof_fields = self
             .proof_params
             .iter()
-            .zip(self.proof_lits.iter())
-            .map(|(name, val)| format!("{name}: {val}"))
-            .chain(extra.iter().map(|(name, val)| format!("{name}: {val}")))
+            .copied()
+            .zip(self.proof_param_values.iter().map(|v| v.as_str()))
+            .chain(extra.iter().copied())
+            .map(|(name, val)| format!("{name}: {}", ba(val)))
             .collect::<Vec<_>>()
             .join(",\n  ");
         format!("Redeemer {{\n  {proof_fields},\n}}")

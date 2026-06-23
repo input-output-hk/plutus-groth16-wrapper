@@ -1,91 +1,52 @@
 //! The backend-agnostic outer proof.
 //!
 //! `outer_proof.json` carries a `backend` discriminator and an
-//! otherwise-disjoint proof shape per outer system (Groth16 vs PLONK). This enum
-//! is the one type the pipeline names: the [`Prover`](../../zkwrap_prover) trait
-//! returns it, and the validator factories dispatch on it. [`OuterProof::from_json`]
-//! peeks the `backend` field and parses into the matching variant; each backend
-//! owns its concrete artifact type.
+//! otherwise-disjoint proof shape per outer system (Groth16 vs PLONK).
 
-use crate::outer_backends::gnark_groth16::artifacts::{
-    Groth16OuterProof, BACKEND_ID as GROTH16_BACKEND_ID,
-};
-use crate::outer_backends::gnark_plonk::artifacts::{
-    PlonkOuterProof, BACKEND_ID as PLONK_BACKEND_ID,
-};
-use serde::Deserialize;
-use thiserror::Error;
+use crate::codegen::OuterCodegen;
+use crate::outer_backends::gnark_groth16::artifacts::OuterParseError;
 
-pub use crate::outer_backends::gnark_groth16::artifacts::OuterParseError;
+/// A parsed outer proof, abstracted over its outer backend. Everything the
+/// off-chain pipeline needs from a proof — its public inputs, the codegen for
+/// its backend, and the redeemer field hex — is reachable here without naming
+/// the concrete type.
+pub trait OuterProof {
+    /// Parse this backend's `outer_proof.json`.
+    fn from_json(json: &str) -> Result<Self, OuterParseError>
+    where
+        Self: Sized;
 
-/// A parsed outer proof, tagged by its outer backend.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OuterProof {
-    /// gnark Groth16/BLS12-381 (`gnark-groth16-bls12381`).
-    Groth16(Groth16OuterProof),
-    /// gnark PLONK/BLS12-381 (`gnark-plonk-bls12381`).
-    Plonk(PlonkOuterProof),
-}
-
-/// Minimal header read first to route the full parse to the right variant.
-#[derive(Deserialize)]
-struct BackendHeader {
-    backend: String,
-}
-
-#[derive(Debug, Error)]
-pub enum OuterDispatchError {
-    #[error("read backend: {0}")]
-    Header(serde_json::Error),
-    #[error("unknown outer backend {0:?}")]
-    UnknownBackend(String),
-    #[error(transparent)]
-    Parse(#[from] OuterParseError),
-}
-
-impl OuterProof {
-    /// Parse `outer_proof.json`, dispatching on its `backend` field.
-    pub fn from_json(s: &str) -> Result<Self, OuterDispatchError> {
-        let header: BackendHeader = serde_json::from_str(s).map_err(OuterDispatchError::Header)?;
-        match header.backend.as_str() {
-            GROTH16_BACKEND_ID => Ok(OuterProof::Groth16(Groth16OuterProof::from_json(s)?)),
-            PLONK_BACKEND_ID => Ok(OuterProof::Plonk(PlonkOuterProof::from_json(s)?)),
-            other => Err(OuterDispatchError::UnknownBackend(other.to_string())),
-        }
-    }
-
-    /// The outer-backend id (`backend` field), which keys the outer layer.
-    pub fn backend(&self) -> &str {
-        match self {
-            OuterProof::Groth16(p) => &p.backend,
-            OuterProof::Plonk(p) => &p.backend,
-        }
-    }
+    /// Outer-backend id (`backend` field), which keys the outer layer.
+    fn backend(&self) -> &str;
 
     /// In-circuit Poseidon hash of the inner VK (the first public signal),
     /// 32-byte BE Fr hex — the codegen's `inner_vk_hash` constant.
-    pub fn inner_vk_hash(&self) -> &str {
-        match self {
-            OuterProof::Groth16(p) => &p.inner_vk_hash,
-            OuterProof::Plonk(p) => &p.inner_vk_hash,
-        }
-    }
+    fn inner_vk_hash(&self) -> &str;
 
-    /// The public-input vector (each a 32-byte BE Fr hex). For Groth16 this is
-    /// the `MAX_INPUTS`-padded vector; for PLONK it is the exact `n_real` inputs.
-    pub fn inputs(&self) -> &[String] {
-        match self {
-            OuterProof::Groth16(p) => &p.inputs,
-            OuterProof::Plonk(p) => &p.inputs,
-        }
-    }
+    /// The public-input vector (each a 32-byte BE Fr hex). Groth16 pads to
+    /// `MAX_INPUTS`; PLONK is the exact `n_real` inputs.
+    fn inputs(&self) -> &[String];
 
     /// Length of the public-input vector (`max_inputs` for Groth16, `num_inputs`
-    /// for PLONK).
-    pub fn num_inputs(&self) -> usize {
-        match self {
-            OuterProof::Groth16(p) => p.max_inputs,
-            OuterProof::Plonk(p) => p.num_inputs,
-        }
+    /// for PLONK — both equal `inputs().len()`).
+    fn num_inputs(&self) -> usize {
+        self.inputs().len()
     }
+
+    /// The redeemer proof-field values as raw lowercase hex, paired one-to-one
+    /// (same length, same order) with this backend's
+    /// [`codegen()`](Self::codegen)'s [`OuterCodegen::proof_params`] — the names.
+    /// The validator zips the two into the generated `Redeemer` / `verify(…)`
+    /// call, wrapping each value as an Aiken `ByteArray` literal, so the ordering
+    /// here IS the on-chain ABI contract. Fallible because some backends
+    /// (Groth16) require an artifact that may be absent.
+    fn proof_param_values(&self) -> Result<Vec<String>, OuterParseError>;
+
+    /// The outer-layer codegen for this proof's backend. Pairing it with
+    /// [`Self::proof_param_values`] on the same value keeps the redeemer field
+    /// order and the verifier ABI in lockstep.
+    fn codegen(&self) -> &'static dyn OuterCodegen;
 }
+
+// The per-backend `impl OuterProof` blocks live with their concrete proof
+// types, in `outer_backends::gnark_groth16::artifacts` / `gnark_plonk::artifacts`.

@@ -12,6 +12,9 @@
 //! bakes them as the transcript preimage; the compressed form is derived
 //! on-chain); `kzg.g1`/`g2_*` stay compressed.
 
+use super::PlonkBackend;
+use crate::codegen::OuterCodegen;
+use crate::outer_proof::OuterProof;
 use serde::Deserialize;
 
 pub use super::super::gnark_groth16::artifacts::OuterParseError;
@@ -164,12 +167,6 @@ pub struct PlonkOuterProof {
 }
 
 impl PlonkOuterProof {
-    pub fn from_json(s: &str) -> Result<Self, OuterParseError> {
-        let p: PlonkOuterProof = serde_json::from_str(s).map_err(OuterParseError::Json)?;
-        p.validate()?;
-        Ok(p)
-    }
-
     fn validate(&self) -> Result<(), OuterParseError> {
         if self.backend != BACKEND_ID {
             return Err(OuterParseError::Shape(format!(
@@ -211,15 +208,30 @@ impl PlonkOuterProof {
         }
         Ok(())
     }
+}
 
-    /// The proof field values as raw lowercase hex, in
-    /// [`PlonkBackend::proof_params`](super::PlonkBackend) order. Transcript-bound
-    /// points contribute their uncompressed (`u`) form; the EC-only opening
-    /// proofs (`batched_h`, `zshift_h`) their compressed (`c`) form;
-    /// `claimed_values` is the seven gnark-ordered Fr openings concatenated. The
-    /// validator wraps each as an Aiken `ByteArray` literal.
-    pub fn proof_field_hex(&self) -> Vec<String> {
-        vec![
+/// The engine-facing view of this backend's proof (see [`OuterProof`]).
+impl OuterProof for PlonkOuterProof {
+    fn from_json(json: &str) -> Result<Self, OuterParseError> {
+        let p: PlonkOuterProof = serde_json::from_str(json).map_err(OuterParseError::Json)?;
+        p.validate()?;
+        Ok(p)
+    }
+    fn backend(&self) -> &str {
+        &self.backend
+    }
+    fn inner_vk_hash(&self) -> &str {
+        &self.inner_vk_hash
+    }
+    fn inputs(&self) -> &[String] {
+        &self.inputs
+    }
+    fn proof_param_values(&self) -> Result<Vec<String>, OuterParseError> {
+        // Transcript-bound points contribute their uncompressed (`u`) form; the
+        // EC-only opening proofs (`batched_h`, `zshift_h`) their compressed
+        // (`c`) form; `claimed_values` is the seven gnark-ordered Fr openings
+        // concatenated. Infallible — every field is always present.
+        Ok(vec![
             self.lro[0].u.clone(),
             self.lro[1].u.clone(),
             self.lro[2].u.clone(),
@@ -233,7 +245,10 @@ impl PlonkOuterProof {
             self.z_shifted_opening.h.c.clone(),
             self.batched_proof.claimed_values.concat(),
             self.z_shifted_opening.claimed_value.clone(),
-        ]
+        ])
+    }
+    fn codegen(&self) -> &'static dyn OuterCodegen {
+        &PlonkBackend
     }
 }
 

@@ -8,6 +8,9 @@
 //! lowercase hex (no `0x`), compressed BLS12-381 (48-byte G1, 96-byte G2),
 //! matching what Cardano's `bls12_381_*_uncompress` builtins expect.
 
+use super::Groth16Backend;
+use crate::codegen::OuterCodegen;
+use crate::outer_proof::OuterProof;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -107,18 +110,6 @@ pub struct Groth16OuterProof {
 }
 
 impl Groth16OuterProof {
-    pub fn from_json(s: &str) -> Result<Self, OuterParseError> {
-        let p: Groth16OuterProof = serde_json::from_str(s).map_err(OuterParseError::Json)?;
-        if p.inputs.len() != p.max_inputs {
-            return Err(OuterParseError::Shape(format!(
-                "inputs length {} != max_inputs {}",
-                p.inputs.len(),
-                p.max_inputs
-            )));
-        }
-        Ok(p)
-    }
-
     /// The single uncompressed (96-byte) Pedersen commitment — the redeemer
     /// artifact the verifier hashes and decompresses. Carried in the proof
     /// because it is expensive to derive it in Plutus on-chain.
@@ -129,12 +120,32 @@ impl Groth16OuterProof {
             .map(String::as_str)
             .ok_or_else(|| OuterParseError::Shape("proof has no commitments_uncompressed".into()))
     }
+}
 
-    /// The proof field values as raw lowercase hex, in
-    /// [`Groth16Backend::proof_params`](super::Groth16Backend) order
-    /// (`pi_a, pi_b, pi_c, commitment_uncompressed, commitment_pok`). The
-    /// validator wraps each as an Aiken `ByteArray` literal.
-    pub fn proof_field_hex(&self) -> Result<Vec<String>, OuterParseError> {
+/// The engine-facing view of this backend's proof (see [`OuterProof`]).
+impl OuterProof for Groth16OuterProof {
+    fn from_json(json: &str) -> Result<Self, OuterParseError> {
+        let p: Groth16OuterProof = serde_json::from_str(json).map_err(OuterParseError::Json)?;
+        if p.inputs.len() != p.max_inputs {
+            return Err(OuterParseError::Shape(format!(
+                "inputs length {} != max_inputs {}",
+                p.inputs.len(),
+                p.max_inputs
+            )));
+        }
+        Ok(p)
+    }
+    fn backend(&self) -> &str {
+        &self.backend
+    }
+    fn inner_vk_hash(&self) -> &str {
+        &self.inner_vk_hash
+    }
+    fn inputs(&self) -> &[String] {
+        &self.inputs
+    }
+    fn proof_param_values(&self) -> Result<Vec<String>, OuterParseError> {
+        // pi_a, pi_b, pi_c, commitment_uncompressed, commitment_pok.
         Ok(vec![
             self.proof.ar.clone(),
             self.proof.bs.clone(),
@@ -142,6 +153,9 @@ impl Groth16OuterProof {
             self.commitment_uncompressed()?.to_string(),
             self.proof.commitment_pok.clone(),
         ])
+    }
+    fn codegen(&self) -> &'static dyn OuterCodegen {
+        &Groth16Backend
     }
 }
 

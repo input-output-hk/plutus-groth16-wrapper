@@ -82,7 +82,7 @@ fn hex_field(codegen: &Value, key: &str, expect_len: usize) -> Result<Vec<u8>, C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zkwrap_core::OuterProof;
+    use zkwrap_core::{Groth16OuterProof, OuterProof, PlonkOuterProof};
 
     fn repo_path(rel: &str) -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -125,19 +125,28 @@ mod tests {
 
     /// The baked version-constant inputs (program vkey hash=[0], exit_code=[2],
     /// vk_root=[3]) must equal the corresponding slots of the outer proof.
-    #[test]
-    fn baked_consts_match_outer_proof() {
+    /// Backend-parametric: the inner public inputs are independent of the outer
+    /// backend, so this holds for every backend's proof.
+    fn assert_baked_consts_match<P: OuterProof>(proof_rel: &str) {
         let wiring = Sp1Codegen.wiring(&test_codegen()).unwrap();
-        let proof = OuterProof::from_json(
-            &std::fs::read_to_string(repo_path(
-                "fixtures/outer-proofs/sp1-groth16-outer-proof.json",
-            ))
-            .unwrap(),
-        )
-        .unwrap();
+        let proof = P::from_json(&std::fs::read_to_string(repo_path(proof_rel)).unwrap()).unwrap();
         assert_int_const_matches(&wiring.consts, "sp1_program_vkey_hash", &proof.inputs()[0]);
         assert_int_const_matches(&wiring.consts, "exit_code", &proof.inputs()[2]);
         assert_int_const_matches(&wiring.consts, "vk_root", &proof.inputs()[3]);
+    }
+
+    #[test]
+    fn baked_consts_match_groth16_proof() {
+        assert_baked_consts_match::<Groth16OuterProof>(
+            "fixtures/outer-proofs/sp1-groth16-outer-proof.json",
+        );
+    }
+
+    #[test]
+    fn baked_consts_match_plonk_proof() {
+        assert_baked_consts_match::<PlonkOuterProof>(
+            "fixtures/outer-proofs/sp1-plonk-outer-proof.json",
+        );
     }
 
     #[test]

@@ -17,7 +17,7 @@ use std::process::Command;
 use risc0_zkvm::sha::Digest;
 use risc0_zkvm::Receipt;
 
-use zkwrap_core::OuterProof;
+use zkwrap_core::{Groth16OuterProof, OuterProof, PlonkOuterProof};
 use zkwrap_risc0::{build_validator, canonicalize, Risc0ValidatorRequest};
 
 fn repo_path(rel: &str) -> PathBuf {
@@ -36,7 +36,7 @@ fn read_bytes(rel: &str) -> Vec<u8> {
 
 #[test]
 fn factory_emits_aiken_check_passing_project_groth16() {
-    run_case(
+    run_case::<Groth16OuterProof>(
         "groth16",
         "fixtures/groth16-setup/outer_vk.json",
         "fixtures/outer-proofs/risc0-groth16-outer-proof.json",
@@ -46,7 +46,7 @@ fn factory_emits_aiken_check_passing_project_groth16() {
 
 #[test]
 fn factory_emits_aiken_check_passing_project_plonk() {
-    run_case(
+    run_case::<PlonkOuterProof>(
         "plonk",
         "fixtures/plonk-setup/outer_vk.json",
         "fixtures/outer-proofs/risc0-plonk-outer-proof.json",
@@ -54,8 +54,8 @@ fn factory_emits_aiken_check_passing_project_plonk() {
     );
 }
 
-/// Build + `aiken check` the RISC Zero validator for one outer backend.
-fn run_case(outer_mod: &str, vk_rel: &str, proof_rel: &str, out_subdir: &str) {
+/// Build + `aiken check` the RISC Zero validator for one outer backend `P`.
+fn run_case<P: OuterProof>(outer_mod: &str, vk_rel: &str, proof_rel: &str, out_subdir: &str) {
     // Drive it like a host: verify + canonicalize the committed receipt, then
     // pair it with the committed outer proof.
     let receipt: Receipt =
@@ -65,7 +65,7 @@ fn run_case(outer_mod: &str, vk_rel: &str, proof_rel: &str, out_subdir: &str) {
     let canonical = canonicalize(&receipt, image_id).unwrap();
 
     let vk_json = read(vk_rel);
-    let outer = OuterProof::from_json(&read(proof_rel)).unwrap();
+    let outer = P::from_json(&read(proof_rel)).unwrap();
 
     let project = build_validator(&Risc0ValidatorRequest {
         receipt: &receipt,

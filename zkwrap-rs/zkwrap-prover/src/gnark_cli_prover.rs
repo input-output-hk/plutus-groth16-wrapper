@@ -28,7 +28,7 @@ impl GnarkCliProver {
 }
 
 impl Prover for GnarkCliProver {
-    fn prove(&self, inner: &CanonicalInnerProof) -> Result<OuterProof, ProveError> {
+    fn prove<P: OuterProof>(&self, inner: &CanonicalInnerProof) -> Result<P, ProveError> {
         let work = TempDir::new().map_err(ProveError::Io)?;
         // The Go prover reads only system_id + n_real from meta.json, so the
         // opaque codegen section is irrelevant on the prove path — pass None.
@@ -57,6 +57,6 @@ impl Prover for GnarkCliProver {
         }
 
         let json = std::fs::read_to_string(&out).map_err(ProveError::Io)?;
-        OuterProof::from_json(&json).map_err(ProveError::Parse)
+        P::from_json(&json).map_err(ProveError::Parse)
     }
 }

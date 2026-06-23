@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use sp1_verifier::{Groth16Bn254Proof, SP1Proof};
-use zkwrap_core::OuterProof;
+use zkwrap_core::{Groth16OuterProof, OuterProof, PlonkOuterProof};
 use zkwrap_sp1::{build_validator, canonicalize, Canonicalized, Sp1ValidatorRequest};
 
 fn repo_path(rel: &str) -> PathBuf {
@@ -34,7 +34,7 @@ fn read_bytes(rel: &str) -> Vec<u8> {
 
 #[test]
 fn factory_emits_aiken_check_passing_project_groth16() {
-    run_case(
+    run_case::<Groth16OuterProof>(
         "groth16",
         "fixtures/groth16-setup/outer_vk.json",
         "fixtures/outer-proofs/sp1-groth16-outer-proof.json",
@@ -44,7 +44,7 @@ fn factory_emits_aiken_check_passing_project_groth16() {
 
 #[test]
 fn factory_emits_aiken_check_passing_project_plonk() {
-    run_case(
+    run_case::<PlonkOuterProof>(
         "plonk",
         "fixtures/plonk-setup/outer_vk.json",
         "fixtures/outer-proofs/sp1-plonk-outer-proof.json",
@@ -75,13 +75,13 @@ fn sp1_canonical(public_values: &[u8]) -> Canonicalized {
     canonicalize(&sp1_proof, public_values).unwrap()
 }
 
-/// Build + `aiken check` the SP1 validator for one outer backend.
-fn run_case(outer_mod: &str, vk_rel: &str, proof_rel: &str, out_subdir: &str) {
+/// Build + `aiken check` the SP1 validator for one outer backend `P`.
+fn run_case<P: OuterProof>(outer_mod: &str, vk_rel: &str, proof_rel: &str, out_subdir: &str) {
     let public_values = read_bytes("fixtures/sp1-hello-world/public_values.bin");
     let canonical = sp1_canonical(&public_values);
 
     let vk_json = read(vk_rel);
-    let outer = OuterProof::from_json(&read(proof_rel)).unwrap();
+    let outer = P::from_json(&read(proof_rel)).unwrap();
 
     let project = build_validator(&Sp1ValidatorRequest {
         canonical: &canonical,

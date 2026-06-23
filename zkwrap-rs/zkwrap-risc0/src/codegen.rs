@@ -98,7 +98,7 @@ fn hex_field(codegen: &Value, key: &str, expect_len: usize) -> Result<Vec<u8>, C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zkwrap_core::OuterProof;
+    use zkwrap_core::{Groth16OuterProof, OuterProof, PlonkOuterProof};
 
     fn repo_path(rel: &str) -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -142,21 +142,30 @@ mod tests {
         assert_eq!(padded, expected_be_hex, "const {name} mismatch");
     }
 
-    #[test]
-    fn baked_inputs_match_outer_proof() {
+    /// The baked version-constant reals (inputs[0], [1], [4]) must equal the
+    /// corresponding slots of the outer proof. Backend-parametric: the inner
+    /// public inputs are independent of the outer backend, so this holds for
+    /// every backend's proof.
+    fn assert_baked_inputs_match<P: OuterProof>(proof_rel: &str) {
         let wiring = Risc0Codegen.wiring(&test_codegen()).unwrap();
-        let proof = OuterProof::from_json(
-            &std::fs::read_to_string(repo_path(
-                "fixtures/outer-proofs/risc0-groth16-outer-proof.json",
-            ))
-            .unwrap(),
-        )
-        .unwrap();
-
-        // Version-constant reals: inputs[0], inputs[1], inputs[4].
+        let proof = P::from_json(&std::fs::read_to_string(repo_path(proof_rel)).unwrap()).unwrap();
         assert_int_const_matches(&wiring.consts, "control_root_0", &proof.inputs()[0]);
         assert_int_const_matches(&wiring.consts, "control_root_1", &proof.inputs()[1]);
         assert_int_const_matches(&wiring.consts, "bn254_control_id", &proof.inputs()[4]);
+    }
+
+    #[test]
+    fn baked_inputs_match_groth16_proof() {
+        assert_baked_inputs_match::<Groth16OuterProof>(
+            "fixtures/outer-proofs/risc0-groth16-outer-proof.json",
+        );
+    }
+
+    #[test]
+    fn baked_inputs_match_plonk_proof() {
+        assert_baked_inputs_match::<PlonkOuterProof>(
+            "fixtures/outer-proofs/risc0-plonk-outer-proof.json",
+        );
     }
 
     #[test]
