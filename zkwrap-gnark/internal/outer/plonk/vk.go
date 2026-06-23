@@ -20,7 +20,7 @@ import (
 // their **uncompressed** 96-byte gnark RawBytes form — the exact preimage the
 // SHA-256 Fiat-Shamir transcript hashes, which Plutus cannot recompute from a
 // point. The Aiken codegen bakes these bytes directly. `kzg.g1`/`g2_*` are not
-// transcript-bound and stay compressed. 
+// transcript-bound and stay compressed.
 // See docs/schemas/plonk-outer-proof-artifacts.md.
 type vkFile struct {
 	Backend                     string   `json:"backend"`

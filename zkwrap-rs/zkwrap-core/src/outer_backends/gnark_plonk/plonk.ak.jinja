@@ -14,14 +14,14 @@
 // RawBytes) form — the exact transcript preimage. The compressed form needed
 // for EC ops is derived on-chain via `compress_from_uncompressed`
 
-use aiken/builtin
+use aiken/crypto
 use aiken/collection/list
+use aiken/crypto/bls12_381/g1
+use aiken/crypto/bls12_381/g2
+use aiken/crypto/bls12_381/pairing
 use aiken/crypto/bls12_381/scalar.{Scalar}
 use aiken/crypto/bitwise.{State}
 use aiken/primitive/bytearray
-
-type S =
-  State<Scalar>
 
 // =====================================================================
 // Field / curve constants
@@ -32,14 +32,14 @@ const q_modulus: Int =
   0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
 
 // Fiat-Shamir challenge labels (ASCII): "gamma","beta","alpha","zeta".
-const lbl_gamma: ByteArray = #"67616d6d61"
-const lbl_beta: ByteArray = #"62657461"
-const lbl_alpha: ByteArray = #"616c706861"
-const lbl_zeta: ByteArray = #"7a657461"
+const lbl_gamma: ByteArray = "gamma"
+const lbl_beta: ByteArray = "beta"
+const lbl_alpha: ByteArray = "alpha"
+const lbl_zeta:ByteArray = "zeta"
 
-// RFC-9380 ExpandMsgXmd_SHA256, DST = "BSB22-Plonk", L = 48.
-// DST_prime = "BSB22-Plonk" (11 bytes) || I2OSP(11,1) = 0x0b
-const dst_prime: ByteArray = #"42534232322d506c6f6e6b0b"
+// RFC-9380 ExpandMsgXmd_SHA256, DST = "BSB22-Plonk", L = 48.    
+// DST_prime = DST ‖ I2OSP(len(DST), 1); len("BSB22-Plonk") = 11 = 0x0b.
+const dst_prime: ByteArray = bytearray.concat("BSB22-Plonk", #"0b")
 
 const l_i_b_zero: ByteArray = #"003000"
 
@@ -77,46 +77,18 @@ const qcp0_u: ByteArray = #"{{ qcp0_u }}"
 // Small helpers
 // =====================================================================
 
-fn concat(parts: List<ByteArray>) -> ByteArray {
-  list.foldl(parts, #"", fn(p, acc) { builtin.append_bytearray(acc, p) })
-}
-
-fn sha256(b: ByteArray) -> ByteArray {
-  builtin.sha2_256(b)
-}
-
 // A Fiat-Shamir challenge: raw 32-byte SHA-256 of H(label || bindings...).
 fn fs_challenge(label: ByteArray, bindings: List<ByteArray>) -> ByteArray {
-  sha256(concat([label, ..bindings]))
-}
-
-fn to_scalar(raw: ByteArray) -> S {
-  scalar.from_bytes(raw)
-}
-
-fn g1(compressed: ByteArray) -> G1Element {
-  builtin.bls12_381_g1_uncompress(compressed)
-}
-
-fn smul(p: G1Element, s: S) -> G1Element {
-  builtin.bls12_381_g1_scalar_mul(scalar.to_int(s), p)
-}
-
-fn gadd(a: G1Element, b: G1Element) -> G1Element {
-  builtin.bls12_381_g1_add(a, b)
-}
-
-fn one() -> S {
-  scalar.from_int(1)
+  crypto.sha2_256(list.foldr([label, ..bindings], #"", bytearray.concat))
 }
 
 // TODO: refactor when CIP-109 with built-in inversion is available in Aiken
 // Montgomery batch inversion: [x0..xₙ] -> [1/x0..1/xₙ] with ONE recip.
-fn batch_invert(xs: List<S>) -> List<S> {
+fn batch_invert(xs: List<State<Scalar>>) -> List<State<Scalar>> {
   let (prefixes_rev, total) =
     list.foldl(
       xs,
-      ([], one()),
+      ([], scalar.from_int(1)),
       fn(x, acc) {
         let (ps, run) = acc
         ([run, ..ps], scalar.mul(run, x))
@@ -138,11 +110,11 @@ fn batch_invert(xs: List<S>) -> List<S> {
 }
 
 // [g^0, g^1, …, g^(n-1)]
-fn powers(g: S, n: Int) -> List<S> {
-  do_powers(g, one(), n)
+fn powers(g: State<Scalar>, n: Int) -> List<State<Scalar>> {
+  do_powers(g, scalar.from_int(1), n)
 }
 
-fn do_powers(g: S, cur: S, n: Int) -> List<S> {
+fn do_powers(g: State<Scalar>, cur: State<Scalar>, n: Int) -> List<State<Scalar>> {
   if n == 0 {
     []
   } else {
@@ -161,46 +133,46 @@ fn compress_from_uncompressed(u: ByteArray) -> ByteArray {
       0x80
     }
   let head = sign_flag + bytearray.at(u, 0) % 32
-  builtin.cons_bytearray(head, bytearray.slice(u, 1, 47))
+  bytearray.push(bytearray.slice(u, 1, 47), head)
 }
 
 // G1Element from a point's uncompressed (RawBytes) form.
 fn g1_from_u(u: ByteArray) -> G1Element {
-  g1(compress_from_uncompressed(u))
+  g1.decompress(compress_from_uncompressed(u))
 }
 
 // RFC-9380 ExpandMsgXmd_SHA256(msg, "BSB22-Plonk", 48).
 fn expand_msg_xmd_48(msg: ByteArray) -> ByteArray {
   let b0 =
-    sha256(
+    crypto.sha2_256(
       z_pad
-        |> builtin.append_bytearray(msg)
-        |> builtin.append_bytearray(l_i_b_zero)
-        |> builtin.append_bytearray(dst_prime),
+        |> bytearray.concat(msg)
+        |> bytearray.concat(l_i_b_zero)
+        |> bytearray.concat(dst_prime),
     )
   let b1 =
-    sha256(
+    crypto.sha2_256(
       b0
-        |> builtin.append_bytearray(#"01")
-        |> builtin.append_bytearray(dst_prime),
+        |> bytearray.concat(#"01")
+        |> bytearray.concat(dst_prime),
     )
   let b2 =
-    sha256(
+    crypto.sha2_256(
       bytearray.xor_bytes(b0, b1, False)
-        |> builtin.append_bytearray(#"02")
-        |> builtin.append_bytearray(dst_prime),
+        |> bytearray.concat(#"02")
+        |> bytearray.concat(dst_prime),
     )
-  builtin.append_bytearray(b1, bytearray.take(b2, 16))
+  bytearray.concat(b1, bytearray.take(b2, 16))
 }
 
 // hashedCmt = fr.Hash(uncompressed_bsb22, "BSB22-Plonk", 1)
-fn hash_commitment(uncompressed: ByteArray) -> S {
+fn hash_commitment(uncompressed: ByteArray) -> State<Scalar> {
   uncompressed |> expand_msg_xmd_48 |> scalar.from_bytes
 }
 
 // 32-byte big-endian Fr encoding of a public-input Int.
 fn pi_bytes(n: Int) -> ByteArray {
-  builtin.integer_to_bytearray(True, 32, n)
+  bytearray.from_int_big_endian(n, 32)
 }
 
 // =====================================================================
@@ -217,7 +189,7 @@ fn transcript(
   h_0: ByteArray,
   h_1: ByteArray,
   h_2: ByteArray,
-) -> (S, S, S, S) {
+) -> (State<Scalar>, State<Scalar>, State<Scalar>, State<Scalar>) {
   let gamma_raw =
     fs_challenge(
       lbl_gamma,
@@ -230,10 +202,10 @@ fn transcript(
   let alpha_raw = fs_challenge(lbl_alpha, [beta_raw, bsb_0, z])
   let zeta_raw = fs_challenge(lbl_zeta, [alpha_raw, h_0, h_1, h_2])
   (
-    to_scalar(gamma_raw),
-    to_scalar(beta_raw),
-    to_scalar(alpha_raw),
-    to_scalar(zeta_raw),
+    scalar.from_bytes(gamma_raw),
+    scalar.from_bytes(beta_raw),
+    scalar.from_bytes(alpha_raw),
+    scalar.from_bytes(zeta_raw),
   )
 }
 
@@ -243,11 +215,11 @@ fn transcript(
 
 fn pi_terms(
   pis: List<ByteArray>,
-  gps: List<S>,
-  invs: List<S>,
-  zh_size: S,
-  acc: S,
-) -> S {
+  gps: List<State<Scalar>>,
+  invs: List<State<Scalar>>,
+  zh_size: State<Scalar>,
+  acc: State<Scalar>,
+) -> State<Scalar> {
   when (pis, gps, invs) is {
     ([pb, ..pr], [gi, ..gr], [iv, ..ir]) -> {
       let pi = scalar.from_bytes(pb)
@@ -306,7 +278,7 @@ pub fn verify(
   let size_inv = scalar.from_bytes(vk_size_inv)
   let generator = scalar.from_bytes(vk_generator)
   let coset_shift = scalar.from_bytes(vk_coset_shift)
-  let one = one()
+  let one = scalar.from_int(1)
 
   let zeta_pow_m = scalar.scale(zeta, vk_size)
   let zh_zeta = scalar.sub(zeta_pow_m, one)
@@ -409,26 +381,26 @@ pub fn verify(
   let bsb0_c = compress_from_uncompressed(bsb_0)
 
   let lin_digest_pt =
-    smul(g1(bsb0_c), qcp_eval)
-      |> gadd(smul(g1_from_u(ql_u), l))
-      |> gadd(smul(g1_from_u(qr_u), r))
-      |> gadd(smul(g1_from_u(qm_u), rl))
-      |> gadd(smul(g1_from_u(qo_u), o))
-      |> gadd(smul(g1_from_u(qk_u), one))
-      |> gadd(smul(g1_from_u(s2_u), sv1))
-      |> gadd(smul(g1(z_c), coeff_z))
-      |> gadd(smul(g1(h0_c), zh))
-      |> gadd(smul(g1(h1_c), zeta_n2_zh))
-      |> gadd(smul(g1(h2_c), zeta_n2_sq_zh))
+    g1.scale(g1.decompress(bsb0_c), qcp_eval)
+      |> g1.add(g1.scale(g1_from_u(ql_u), l))
+      |> g1.add(g1.scale(g1_from_u(qr_u), r))
+      |> g1.add(g1.scale(g1_from_u(qm_u), rl))
+      |> g1.add(g1.scale(g1_from_u(qo_u), o))
+      |> g1.add(g1.scale(g1_from_u(qk_u), one))
+      |> g1.add(g1.scale(g1_from_u(s2_u), sv1))
+      |> g1.add(g1.scale(g1.decompress(z_c), coeff_z))
+      |> g1.add(g1.scale(g1.decompress(h0_c), zh))
+      |> g1.add(g1.scale(g1.decompress(h1_c), zeta_n2_zh))
+      |> g1.add(g1.scale(g1.decompress(h2_c), zeta_n2_sq_zh))
 
   // Bind prover-supplied uncompressed linDigest bytes to the computed point.
-  expect builtin.bls12_381_g1_compress(lin_digest_pt) == compress_from_uncompressed(
+  expect g1.compress(lin_digest_pt) == compress_from_uncompressed(
     lin_digest,
   )
 
   // --- gamma_kzg (KZG fold challenge) ---
   let gamma_kzg =
-    to_scalar(
+    scalar.from_bytes(
       fs_challenge(
         lbl_gamma,
         [
@@ -448,12 +420,12 @@ pub fn verify(
 
   let folded_digest =
     lin_digest_pt
-      |> gadd(smul(g1(lro0_c), gk1))
-      |> gadd(smul(g1(lro1_c), gk2))
-      |> gadd(smul(g1(lro2_c), gk3))
-      |> gadd(smul(g1_from_u(s0_u), gk4))
-      |> gadd(smul(g1_from_u(s1_u), gk5))
-      |> gadd(smul(g1_from_u(qcp0_u), gk6))
+      |> g1.add(g1.scale(g1.decompress(lro0_c), gk1))
+      |> g1.add(g1.scale(g1.decompress(lro1_c), gk2))
+      |> g1.add(g1.scale(g1.decompress(lro2_c), gk3))
+      |> g1.add(g1.scale(g1_from_u(s0_u), gk4))
+      |> g1.add(g1.scale(g1_from_u(s1_u), gk5))
+      |> g1.add(g1.scale(g1_from_u(qcp0_u), gk6))
 
   let folded_eval =
     scalar.from_bytes(cv_lin)
@@ -466,36 +438,36 @@ pub fn verify(
 
   // --- deterministic two-opening batch λ (Solidity-style) ---
   let u =
-    to_scalar(
-      sha256(
-        builtin.append_bytearray(
-          builtin.bls12_381_g1_compress(folded_digest),
+    scalar.from_bytes(
+      crypto.sha2_256(
+        bytearray.concat(
+          g1.compress(folded_digest),
           z_c,
         ),
       ),
     )
 
-  let h0 = g1(batched_h)
-  let h1 = g1(zshift_h)
-  let z_pt = g1(z_c)
-  let kzg_g1_pt = g1(kzg_g1)
+  let h0 = g1.decompress(batched_h)
+  let h1 = g1.decompress(zshift_h)
+  let z_pt = g1.decompress(z_c)
+  let kzg_g1_pt = g1.decompress(kzg_g1)
 
   // foldedQuot = H0 + u·H1
-  let folded_quot = gadd(h0, smul(h1, u))
+  let folded_quot = g1.add(h0, g1.scale(h1, u))
 
   // acc = (foldedDigest + u·Z) - (foldedEval + u·zu)·G1 + (ζ·H0 + u·ζω·H1)
   let shifted_zeta = scalar.mul(zeta, generator)
   let eval_scalar = u |> scalar.mul(zu) |> scalar.add(folded_eval)
   let acc =
-    gadd(folded_digest, smul(z_pt, u))
-      |> gadd(builtin.bls12_381_g1_neg(smul(kzg_g1_pt, eval_scalar)))
-      |> gadd(smul(h0, zeta))
-      |> gadd(smul(h1, scalar.mul(u, shifted_zeta)))
+    g1.add(folded_digest, g1.scale(z_pt, u))
+      |> g1.sub(g1.scale(kzg_g1_pt, eval_scalar))
+      |> g1.add(g1.scale(h0, zeta))
+      |> g1.add(g1.scale(h1, scalar.mul(u, shifted_zeta)))
 
   // pairing: e(acc, [1]₂) == e(foldedQuot, [s]₂)
-  let g2_0 = builtin.bls12_381_g2_uncompress(kzg_g2_0)
-  let g2_1 = builtin.bls12_381_g2_uncompress(kzg_g2_1)
-  let lhs = builtin.bls12_381_miller_loop(acc, g2_0)
-  let rhs = builtin.bls12_381_miller_loop(folded_quot, g2_1)
-  builtin.bls12_381_final_verify(lhs, rhs)
+  let g2_0 = g2.decompress(kzg_g2_0)
+  let g2_1 = g2.decompress(kzg_g2_1)
+  let lhs = pairing.miller_loop(acc, g2_0)
+  let rhs = pairing.miller_loop(folded_quot, g2_1)
+  pairing.final_exponentiation(lhs, rhs)
 }
