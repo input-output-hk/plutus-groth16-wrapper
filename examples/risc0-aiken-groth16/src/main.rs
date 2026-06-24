@@ -18,6 +18,7 @@ use std::process::{Command, ExitCode};
 use risc0_aiken_groth16_methods::{MULTIPLY_ELF, MULTIPLY_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts};
 
+use zkwrap_core::{Groth16OuterProof, OuterProof};
 use zkwrap_prover::{GnarkCliProver, Prover};
 use zkwrap_risc0::{build_validator, canonicalize, Risc0ValidatorRequest};
 
@@ -65,10 +66,10 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!(
         "\n[3/4] wrap: GnarkCliProver::prove → BLS12-381 outer proof (loads the ~1 GB PK ~40s) …"
     );
-    let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove(&canonical.proof)?;
+    let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove::<Groth16OuterProof>(&canonical.proof)?;
     println!(
-        "      ✔ outer proof: backend={}, max_inputs={}, inner_vk_hash={}",
-        outer.backend, outer.max_inputs, outer.inner_vk_hash
+        "      ✔ outer proof: backend={}, num_inputs={}, inner_vk_hash={}",
+        outer.backend(), outer.num_inputs(), outer.inner_vk_hash()
     );
 
     // --- [4] build_validator: generate the Aiken project + aiken check --------

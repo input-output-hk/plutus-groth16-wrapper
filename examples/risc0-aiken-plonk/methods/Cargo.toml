@@ -1,0 +1,11 @@
+[package]
+name = "risc0-aiken-plonk-methods"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+risc0-build = "^3.0.5"
+
+[package.metadata.risc0]
+methods = ["guest"]

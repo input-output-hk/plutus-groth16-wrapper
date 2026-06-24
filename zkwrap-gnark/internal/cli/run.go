@@ -46,13 +46,15 @@ func runUnsafeSetup(args []string, stdout, stderr io.Writer) int {
 	var (
 		maxInputs int
 		out       string
+		backend   string
 	)
-	f.fs.IntVar(&maxInputs, "max-inputs", 0, "MAX_INPUTS constant to bake into the wrapper circuit")
+	f.fs.IntVar(&maxInputs, "max-inputs", 0, "number of wrapper-circuit input slots (groth16: padded MAX_INPUTS; plonk: exact n_real)")
 	f.fs.StringVar(&out, "out", "", "output directory for the setup bundle")
+	f.fs.StringVar(&backend, "backend", "", "outer backend: groth16 | plonk")
 	if !f.parse(args) {
 		return ExitMisuse
 	}
-	return unsafeSetup(maxInputs, out, stderr)
+	return unsafeSetup(backend, maxInputs, out, stderr)
 }
 
 func runProve(args []string, stdout, stderr io.Writer) int {

@@ -2,7 +2,41 @@
 
 Step-by-step plan for delivering [initial-proposal.md](initial-proposal.md). Each phase gates on the previous one; the critical path to a meaningful demo is Phase 1 -> 2 -> 3 -> 4.
 
-> **Current phase:** Phase 5 SP1 plugin landed off-chain, targeting **current SP1 (sp1-sdk 6.2.4, circuit v6.1.0)**: `zkwrap-sp1` mirrors the RISC Zero plugin (`canonicalize` + `Sp1Codegen`/`sp1.ak` + `build_validator`), and the acceptance test generates an Aiken project that `aiken check`s green against committed SP1 fixtures (`fixtures/sp1-hello-world`, `fixtures/canonical-inner/sp1-hello-world`, `fixtures/outer-proofs/sp1-groth16-outer-proof.json`). The SP1 v6 inner axis: `n_real=5` = `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`; `vkey_hash`/`exit_code`/`vk_root` are baked, `committed_values_digest = SHA256(public_values) mod 2^253` is derived on-chain, `proof_nonce` rides in the redeemer; the fixed v6.1.0 inner VK is decoded on the fly from `sp1-verifier`'s embedded `GROTH16_VK_BYTES` (no committed blob); binding via an `ark-groth16` inner verify in `canonicalize`. A single `canonicalize(&SP1Proof, public_values)` takes SP1's native proof type directly (via `sp1-verifier`, which also supplies the VK + gnark→ark decoders); there is no `sp1-sdk` dependency in the plugin. Artifact format captured from a real CPU-proved proof in `experiments/sp1-v6-hello-world` (`docs/research/sp1-artifact-format-v6.md`). Still pending: updating the live `examples/sp1-aiken-groth16` demo to v6, the deferred extraction of the shared outer-test generator into `zkwrap-core`, and Phase 4 step 4 (preview-testnet submission). See [journal.md](journal.md) for latest status.
+> **Current phase:** Phase 6.1 — gnark PLONK/BLS12-381 outer backend. The Step 0
+> de-risking spike (`experiments/aiken-plonk-spike/`) is **done and green**: a real
+> gnark PLONK outer proof (production proof shape — 9 public signals + one BSB22
+> commitment) verifies on Cardano at 4.82 B cpu / 3.05 M mem (limits 10 B / 14 M),
+> proving the on-chain verifier tractable. The PLONK wire format is pinned in
+> `docs/schemas/plonk-outer-proof-artifacts.md` (SHA-256 transcript over
+> uncompressed G1, BSB22 hash-to-field DST `"BSB22-Plonk"`, Solidity-style
+> deterministic batch λ, supplied-and-bound `lin_digest`). **PR1 done** —
+> `zkwrap-gnark --backend plonk` (Go PLONK serialization + CLI, schema-first).
+> **PR2 done** — Rust `PlonkBackend` + `plonk.ak` codegen; the backend-agnostic
+> `OuterProof` **trait** (each backend's proof impls it, `Prover::prove` generic
+> over it, no runtime dispatch in core); the shared outer-test generator; per-system
+> PLONK fixtures; and standalone PLONK examples (`examples/{risc0,sp1}-aiken-plonk`).
+> Both RISC Zero and SP1 generate validators that `aiken check` green on the real
+> PLONK proof. The outer-layer swap leaves the wrapper circuit, public-input layout,
+> `InnerVKHash` (Poseidon2), and both inner layers untouched. **Phase 6.1 is
+> functionally complete.** Still open: an ADR for the transcript-hash / unsafe-SRS
+> choices + the exact-`num_inputs` divergence from ADR-0002 (flagged, not yet
+> written), and a real universal SRS to replace the unsafe per-circuit one.
+>
+> _Prior phases (done): Phase 5 SP1 plugin landed off-chain, targeting **current
+> SP1 (sp1-sdk 6.2.4, circuit v6.1.0)**: `zkwrap-sp1` mirrors the RISC Zero plugin
+> (`canonicalize` + `Sp1Codegen`/`sp1.ak` + `build_validator`), and the acceptance
+> test generates an Aiken project that `aiken check`s green against committed SP1
+> fixtures (`fixtures/sp1-hello-world`, `fixtures/canonical-inner/sp1-hello-world`,
+> `fixtures/outer-proofs/sp1-groth16-outer-proof.json`). The SP1 v6 inner axis:
+> `n_real=5` = `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`;
+> `vkey_hash`/`exit_code`/`vk_root` are baked, `committed_values_digest =
+> SHA256(public_values) mod 2^253` is derived on-chain, `proof_nonce` rides in the
+> redeemer; the fixed v6.1.0 inner VK is decoded on the fly from `sp1-verifier`'s
+> embedded `GROTH16_VK_BYTES` (no committed blob); binding via an `ark-groth16`
+> inner verify in `canonicalize`. Still pending: updating the live
+> `examples/sp1-aiken-groth16` demo to v6, the deferred extraction of the shared
+> outer-test generator into `zkwrap-core` (folded into PR2 above), and Phase 4 step
+> 4 (preview-testnet submission)._ See [journal.md](journal.md) for latest status.
 > Update this marker whenever a phase begins or completes.
 
 ## Phase 0 - Feasibility (DONE)

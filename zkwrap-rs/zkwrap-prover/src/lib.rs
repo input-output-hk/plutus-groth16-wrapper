@@ -25,7 +25,7 @@ use zkwrap_core::{CanonicalInnerProof, OuterParseError, OuterProof};
 /// names only `zkwrap-core` types so backends are swappable without
 /// touching `canonicalize` or codegen.
 pub trait Prover {
-    fn prove(&self, inner: &CanonicalInnerProof) -> Result<OuterProof, ProveError>;
+    fn prove<P: OuterProof>(&self, inner: &CanonicalInnerProof) -> Result<P, ProveError>;
 }
 
 /// Why an outer-proof attempt failed. Shared across backends — the trait's

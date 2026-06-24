@@ -20,6 +20,48 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-24 — Phase 6.1: Rust PLONK codegen + `OuterProof` trait + examples (PR2)
+
+- **Work done:** `zkwrap-core` `PlonkBackend` (`OuterCodegen`) + `PlonkVk`/`PlonkOuterProof`
+  rendering a new `plonk.ak` verifier (stdlib `g1`/`g2`/`pairing`/`scalar`/`crypto`, no raw
+  builtins). Committed `fixtures/plonk-setup/outer_vk.json` (`num_inputs=5`, shared) + per-system
+  PLONK outer proofs; codegen unit tests + `aiken check` acceptance tests run **both** backends
+  green for RISC Zero and SP1. Added standalone PLONK examples
+  (`examples/{risc0,sp1}-aiken-plonk`).
+- **`OuterProof` is now a trait** (was going to be an enum): each backend's proof type implements it
+  next to its definition; `Prover::prove` is generic over it, so the caller picks the backend
+  (`prove::<PlonkOuterProof>(…)`) and core holds no runtime dispatch. Validators build through
+  `OuterLayer::new(&dyn OuterProof)`.
+- **Single-encoding VK:** transcript-bound VK points are stored once, uncompressed (the SHA-256
+  transcript preimage); the compressed form is derived on-chain. `PlonkVk` rejects non-uncompressed
+  points at parse — a stale/old-format setup (compressed points) otherwise silently desyncs the
+  transcript and fails deep in the verifier (`const_lin`), which bit a live example run.
+- **Links:** `cb555b1`, `39bbc5b`, `fdc5138`, `1f8c35f`, `353a5be`, `dbc2604`, `150d04a` on
+  `feature/plonk-integration` (PR #22).
+
+## 2026-06-19 — Phase 6.1: gnark PLONK outer backend in `zkwrap-gnark` (PR1)
+
+- **Work done:** locked the PLONK wire format
+  (`docs/schemas/plonk-outer-proof-artifacts.md`, committed `cb555b1`) and added
+  `zkwrap-gnark --backend plonk` (serialization, setup/prove/verify, backend
+  auto-dispatch from `outer_vk.json`). Tiny-circuit round-trip tests run in
+  `-short`; full `setup → prove → verify` end-to-end passed against the real RISC
+  Zero fixture (217s). Split `internal/outer` into `outer` (shared) + `outer/groth16`
+  + `outer/plonk`. (PR1 code under review on `feature/plonk-integration`.)
+- **`lin_digest`:** the linearized-poly commitment gnark computes internally but
+  exposes nowhere, so we reimplement the verifier (SHA-256 + BLS12-381) to derive it.
+  Aiken still recomputes it on-chain via MSM, but Plutus has no point→uncompressed
+  builtin (gnark hashes the uncompressed form), so the proof ships it and binds with
+  `compress(supplied) == compress(computed)`.
+- **Findings:** PLONK compiles per inner system with exact `num_inputs` (no
+  `MAX_INPUTS` padding — diverges from ADR-0002, whose padding only avoids a Groth16
+  ceremony); the outer VK depends only on `num_inputs`, so same-`n_real` systems
+  (RISC Zero, SP1 v6) share it. PLONK ≈ Groth16 end-to-end (217s vs 230s,
+  setup-dominated).
+- **Follow-ups:** ADR for the transcript-hash/SRS choices + the `num_inputs`
+  divergence; PR2 (Rust `PlonkBackend` + `plonk.ak` codegen + fixtures);
+  `zkwrap-prover` returns the concrete Groth16 `OuterProof` — generalize for PLONK.
+
 ## 2026-06-18 — Phase 5: SP1 plugin (`zkwrap-sp1`), targeting current SP1 (v6.1.0)
 
 - **Context:** second inner-system plugin, mirroring the RISC Zero one. Started against a stale SP1 (v3.0.0 / 2 public inputs) from the old experiment, then reworked to **current SP1 (sp1-sdk 6.2.4, circuit v6.1.0)** — it's the version anyone integrating today will use, and its public-input shape is what we must commit to on-chain.

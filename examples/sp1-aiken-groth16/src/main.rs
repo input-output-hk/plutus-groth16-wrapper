@@ -19,6 +19,7 @@ use std::process::{Command, ExitCode};
 use sp1_sdk::blocking::{ProveRequest, Prover, ProverClient};
 use sp1_sdk::{include_elf, SP1Stdin};
 
+use zkwrap_core::{Groth16OuterProof, OuterProof};
 use zkwrap_prover::{GnarkCliProver, Prover as _};
 use zkwrap_sp1::{build_validator, canonicalize, Sp1ValidatorRequest};
 
@@ -72,10 +73,10 @@ fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!(
         "\n[3/4] wrap: GnarkCliProver::prove → BLS12-381 outer proof (loads the ~1 GB PK ~33s) …"
     );
-    let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove(&canonical.proof)?;
+    let outer = GnarkCliProver::new(&gnark_bin, &setup_dir).prove::<Groth16OuterProof>(&canonical.proof)?;
     println!(
-        "      ✔ outer proof: backend={}, max_inputs={}, inner_vk_hash={}",
-        outer.backend, outer.max_inputs, outer.inner_vk_hash
+        "      ✔ outer proof: backend={}, num_inputs={}, inner_vk_hash={}",
+        outer.backend(), outer.num_inputs(), outer.inner_vk_hash()
     );
 
     // --- [4] build_validator: generate the Aiken project + aiken check --------

@@ -1,4 +1,4 @@
-package outer
+package groth16
 
 import (
 	"bytes"
@@ -177,7 +177,7 @@ func TestProof_SchemaShape(t *testing.T) {
 // compressed commitment — ReadProof validates this, so a stale or wrong value
 // fails here (and would mislead the Aiken redeemer artifact otherwise).
 func TestProof_FixtureUncompressedCommitmentIsValid(t *testing.T) {
-	f, err := os.Open(filepath.Join("..", "..", "..", "fixtures", "outer-proofs", "risc0-groth16-outer-proof.json"))
+	f, err := os.Open(filepath.Join("..", "..", "..", "..", "fixtures", "outer-proofs", "risc0-groth16-outer-proof.json"))
 	if err != nil {
 		t.Fatalf("open fixture: %v", err)
 	}

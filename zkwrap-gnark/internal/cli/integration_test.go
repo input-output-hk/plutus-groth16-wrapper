@@ -13,14 +13,14 @@ import (
 // Path is relative to this test file.
 const canonicalInnerDir = "../../../fixtures/canonical-inner/risc0-hello-world"
 
-// TestIntegration_SetupProveVerify is the end-to-end smoke check that the
+// TestIntegration_Groth16SetupProveVerify is the end-to-end smoke check that the
 // binary is a working lift of the experiment prototype. It runs the full
 // unsafe-setup → prove → verify cycle against the checked-in canonical
 // inner-proof fixture.
 //
 // The wrapper-circuit trusted setup is slow (≈30s+ on workstation hardware),
 // so this test is skipped under `go test -short`.
-func TestIntegration_SetupProveVerify(t *testing.T) {
+func TestIntegration_Groth16SetupProveVerify(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: trusted setup is slow; skipped in -short mode")
 	}
@@ -41,6 +41,7 @@ func TestIntegration_SetupProveVerify(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{
 			"unsafe-setup",
+			"--backend", "groth16",
 			"--max-inputs", "5",
 			"--out", setupDir,
 		}, &stdout, &stderr)
@@ -53,6 +54,74 @@ func TestIntegration_SetupProveVerify(t *testing.T) {
 	}
 
 	// prove
+	{
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{
+			"prove",
+			"--inner", canonicalInnerDir,
+			"--setup", setupDir,
+			"--out", proofPath,
+		}, &stdout, &stderr)
+		if code != ExitOK {
+			t.Fatalf("prove: exit %d\nstderr: %s", code, stderr.String())
+		}
+	}
+	if proof := mustRead(t, proofPath); !json.Valid(proof) {
+		t.Errorf("prove: outer_proof.json is not valid JSON")
+	}
+
+	// verify
+	{
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{
+			"verify",
+			"--proof", proofPath,
+			"--setup", setupDir,
+		}, &stdout, &stderr)
+		if code != ExitOK {
+			t.Fatalf("verify: exit %d\nstderr: %s", code, stderr.String())
+		}
+	}
+}
+
+// TestIntegration_PlonkSetupProveVerify is the PLONK counterpart: the full
+// unsafe-setup --backend plonk → prove → verify cycle against the same canonical
+// inner-proof fixture. PLONK compiles the wrapper circuit for exactly the inner
+// system's n_real (=5 for the RISC Zero fixture), so --max-inputs must equal 5.
+//
+// Like the Groth16 case, this runs a real recursive setup + prove (~4 min,
+// multi-GB RAM; measured comparable to Groth16 — setup dominates both), so it is
+// skipped under `go test -short`.
+func TestIntegration_PlonkSetupProveVerify(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: plonk setup is slow; skipped in -short mode")
+	}
+	if _, err := os.Stat(filepath.Join(canonicalInnerDir, "vk.bin")); err != nil {
+		t.Skipf("canonical inner-proof testdata not present at %s: %v (run `go run ./cmd/gen-testdata` from the module root)", canonicalInnerDir, err)
+	}
+
+	root := t.TempDir()
+	setupDir := filepath.Join(root, "setup")
+	proofPath := filepath.Join(root, "outer_proof.json")
+
+	// unsafe-setup --backend plonk
+	{
+		var stdout, stderr bytes.Buffer
+		code := Run([]string{
+			"unsafe-setup",
+			"--backend", "plonk",
+			"--max-inputs", "5",
+			"--out", setupDir,
+		}, &stdout, &stderr)
+		if code != ExitOK {
+			t.Fatalf("unsafe-setup: exit %d\nstderr: %s", code, stderr.String())
+		}
+		assertFileNonEmpty(t, filepath.Join(setupDir, "outer_pk.bin"))
+		assertFileNonEmpty(t, filepath.Join(setupDir, "outer_vk.json"))
+		assertFileNonEmpty(t, filepath.Join(setupDir, "circuit.r1cs"))
+	}
+
+	// prove (backend auto-detected from the bundle)
 	{
 		var stdout, stderr bytes.Buffer
 		code := Run([]string{

@@ -1,0 +1,15 @@
+name = "iohk/plonk_wrapper_spike"
+version = "0.0.1"
+plutus = "v3"
+compiler = "1.1.22"
+description = "Hand-written Aiken verifier for a gnark PLONK/BLS12-381 outer wrapper proof. THROWAWAY de-risking spike (docs/tmp/plonk-integration-plan.md, Step 0)."
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"
+
+[repository]
+user = "input-output-hk"
+project = "plutus-groth16-wrapper"
+platform = "github"

@@ -29,6 +29,11 @@ func TestRun_Misuse(t *testing.T) {
 			"positional",
 		},
 		{
+			"setup unknown backend",
+			[]string{"unsafe-setup", "--backend", "fflonk", "--max-inputs", "5", "--out", "/tmp/x"},
+			"backend",
+		},
+		{
 			"prove rejects --max-inputs",
 			[]string{"prove", "--inner", "/a", "--setup", "/b", "--out", "/c", "--max-inputs", "8"},
 			"max-inputs",

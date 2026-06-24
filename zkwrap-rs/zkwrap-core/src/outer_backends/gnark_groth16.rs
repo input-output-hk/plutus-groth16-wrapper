@@ -15,7 +15,7 @@ use crate::codegen::{CodegenError, OuterCodegen, OuterWiring};
 use minijinja::{context, Environment};
 
 const OUTER_TEMPLATE: &str = include_str!("gnark_groth16/outer.ak.jinja");
-const BACKEND_ID: &str = "gnark-groth16-bls12381";
+const BACKEND_ID: &str = artifacts::BACKEND_ID;
 const MODULE_NAME: &str = "groth16";
 
 /// Proof-side parameters forwarded into `groth16.verify` ahead of

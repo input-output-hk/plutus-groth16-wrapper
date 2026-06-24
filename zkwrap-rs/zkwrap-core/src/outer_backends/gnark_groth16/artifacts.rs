@@ -8,8 +8,14 @@
 //! lowercase hex (no `0x`), compressed BLS12-381 (48-byte G1, 96-byte G2),
 //! matching what Cardano's `bls12_381_*_uncompress` builtins expect.
 
+use super::Groth16Backend;
+use crate::codegen::OuterCodegen;
+use crate::outer_proof::OuterProof;
 use serde::Deserialize;
 use thiserror::Error;
+
+/// The Groth16 outer-backend id, recorded in both artifacts' `backend` field.
+pub const BACKEND_ID: &str = "gnark-groth16-bls12381";
 
 /// A Pedersen (Bowe–Gabizon) commitment verifying key: two compressed G2 points.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -93,7 +99,7 @@ pub struct OuterProofPoints {
 
 /// A single outer proof (`outer_proof.json`).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct OuterProof {
+pub struct Groth16OuterProof {
     pub backend: String,
     pub max_inputs: usize,
     pub proof: OuterProofPoints,
@@ -103,19 +109,7 @@ pub struct OuterProof {
     pub inputs: Vec<String>,
 }
 
-impl OuterProof {
-    pub fn from_json(s: &str) -> Result<Self, OuterParseError> {
-        let p: OuterProof = serde_json::from_str(s).map_err(OuterParseError::Json)?;
-        if p.inputs.len() != p.max_inputs {
-            return Err(OuterParseError::Shape(format!(
-                "inputs length {} != max_inputs {}",
-                p.inputs.len(),
-                p.max_inputs
-            )));
-        }
-        Ok(p)
-    }
-
+impl Groth16OuterProof {
     /// The single uncompressed (96-byte) Pedersen commitment — the redeemer
     /// artifact the verifier hashes and decompresses. Carried in the proof
     /// because it is expensive to derive it in Plutus on-chain.
@@ -125,6 +119,43 @@ impl OuterProof {
             .first()
             .map(String::as_str)
             .ok_or_else(|| OuterParseError::Shape("proof has no commitments_uncompressed".into()))
+    }
+}
+
+/// The engine-facing view of this backend's proof (see [`OuterProof`]).
+impl OuterProof for Groth16OuterProof {
+    fn from_json(json: &str) -> Result<Self, OuterParseError> {
+        let p: Groth16OuterProof = serde_json::from_str(json).map_err(OuterParseError::Json)?;
+        if p.inputs.len() != p.max_inputs {
+            return Err(OuterParseError::Shape(format!(
+                "inputs length {} != max_inputs {}",
+                p.inputs.len(),
+                p.max_inputs
+            )));
+        }
+        Ok(p)
+    }
+    fn backend(&self) -> &str {
+        &self.backend
+    }
+    fn inner_vk_hash(&self) -> &str {
+        &self.inner_vk_hash
+    }
+    fn inputs(&self) -> &[String] {
+        &self.inputs
+    }
+    fn proof_param_values(&self) -> Result<Vec<String>, OuterParseError> {
+        // pi_a, pi_b, pi_c, commitment_uncompressed, commitment_pok.
+        Ok(vec![
+            self.proof.ar.clone(),
+            self.proof.bs.clone(),
+            self.proof.krs.clone(),
+            self.commitment_uncompressed()?.to_string(),
+            self.proof.commitment_pok.clone(),
+        ])
+    }
+    fn codegen(&self) -> &'static dyn OuterCodegen {
+        &Groth16Backend
     }
 }
 
@@ -172,7 +203,7 @@ mod tests {
 
     #[test]
     fn parses_outer_proof_fixture() {
-        let p = OuterProof::from_json(&proof_json()).unwrap();
+        let p = Groth16OuterProof::from_json(&proof_json()).unwrap();
         assert_eq!(p.backend, "gnark-groth16-bls12381");
         assert_eq!(p.max_inputs, 8);
         assert_eq!(p.inputs.len(), 8);
