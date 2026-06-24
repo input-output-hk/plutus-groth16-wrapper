@@ -20,6 +20,25 @@ Possible sub-sections (not mandatory, see what fit better for particular entry):
 ```
 Always add new journal entries at the top.
 
+## 2026-06-24 — Phase 6.1: Rust PLONK codegen + `OuterProof` trait + examples (PR2)
+
+- **Work done:** `zkwrap-core` `PlonkBackend` (`OuterCodegen`) + `PlonkVk`/`PlonkOuterProof`
+  rendering a new `plonk.ak` verifier (stdlib `g1`/`g2`/`pairing`/`scalar`/`crypto`, no raw
+  builtins). Committed `fixtures/plonk-setup/outer_vk.json` (`num_inputs=5`, shared) + per-system
+  PLONK outer proofs; codegen unit tests + `aiken check` acceptance tests run **both** backends
+  green for RISC Zero and SP1. Added standalone PLONK examples
+  (`examples/{risc0,sp1}-aiken-plonk`).
+- **`OuterProof` is now a trait** (was going to be an enum): each backend's proof type implements it
+  next to its definition; `Prover::prove` is generic over it, so the caller picks the backend
+  (`prove::<PlonkOuterProof>(…)`) and core holds no runtime dispatch. Validators build through
+  `OuterLayer::new(&dyn OuterProof)`.
+- **Single-encoding VK:** transcript-bound VK points are stored once, uncompressed (the SHA-256
+  transcript preimage); the compressed form is derived on-chain. `PlonkVk` rejects non-uncompressed
+  points at parse — a stale/old-format setup (compressed points) otherwise silently desyncs the
+  transcript and fails deep in the verifier (`const_lin`), which bit a live example run.
+- **Links:** `cb555b1`, `39bbc5b`, `fdc5138`, `1f8c35f`, `353a5be`, `dbc2604`, `150d04a` on
+  `feature/plonk-integration` (PR #22).
+
 ## 2026-06-19 — Phase 6.1: gnark PLONK outer backend in `zkwrap-gnark` (PR1)
 
 - **Work done:** locked the PLONK wire format

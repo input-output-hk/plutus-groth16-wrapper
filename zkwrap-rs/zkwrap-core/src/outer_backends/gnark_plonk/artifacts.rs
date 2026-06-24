@@ -114,6 +114,18 @@ impl PlonkVk {
                 self.qcp.len()
             )));
         }
+        // Transcript-bound VK points are baked verbatim as the SHA-256 transcript
+        // preimage, so they must be the 96-byte uncompressed (gnark RawBytes)
+        // form (192 hex chars).
+        let transcript_points = [&self.ql, &self.qr, &self.qm, &self.qo, &self.qk]
+            .into_iter()
+            .chain(&self.s)
+            .chain(&self.qcp);
+        if transcript_points.into_iter().any(|p| p.len() != 96 * 2) {
+            return Err(OuterParseError::Shape(
+                "transcript-bound VK points must be 96-byte uncompressed G1 (192 hex chars)".into(),
+            ));
+        }
         Ok(())
     }
 
@@ -304,6 +316,17 @@ mod tests {
         let mut v: serde_json::Value = serde_json::from_str(&proof_json()).unwrap();
         v["inputs"].as_array_mut().unwrap().pop();
         let err = PlonkOuterProof::from_json(&v.to_string()).unwrap_err();
+        assert!(matches!(err, OuterParseError::Shape(_)));
+    }
+
+    /// A VK whose transcript-bound points are compressed (48-byte) — the old /
+    /// pre-single-encoding format — must be rejected at parse, not silently bake
+    /// a wrong transcript preimage (which crashes deep in the on-chain verifier).
+    #[test]
+    fn rejects_compressed_vk_points() {
+        let mut v: serde_json::Value = serde_json::from_str(&vk_json()).unwrap();
+        v["ql"] = serde_json::json!("00".repeat(48)); // 48-byte (compressed) length
+        let err = PlonkVk::from_json(&v.to_string()).unwrap_err();
         assert!(matches!(err, OuterParseError::Shape(_)));
     }
 }
