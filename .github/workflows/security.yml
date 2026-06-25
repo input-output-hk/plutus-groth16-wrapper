@@ -27,7 +27,7 @@ jobs:
     name: cargo-deny (advisories, licenses, bans, sources)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           manifest-path: zkwrap-rs/Cargo.toml
@@ -41,7 +41,7 @@ jobs:
       run:
         working-directory: zkwrap-gnark
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version-file: zkwrap-gnark/go.mod
