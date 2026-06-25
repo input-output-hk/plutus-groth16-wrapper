@@ -40,9 +40,13 @@ zkwrap-gnark/zkwrap-gnark
 # AI agent tooling — local only, not part of the project
 .claude/
 .agents/
-docs/agents/
-
+/AGENTS.md
+/CLAUDE.md
+/CONTEXT.md
+docs/journal.md
+docs/research/
 docs/tmp
+docs/agents/
 
 # Trusted-setup artifacts under groth16-setup/ are bulky (outer_pk.bin ~1 GB,
 # circuit.r1cs ~70 MB) and regenerated locally — ignore everything there EXCEPT

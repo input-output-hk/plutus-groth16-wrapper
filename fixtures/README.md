@@ -61,5 +61,4 @@ SP1 v6.1.0). The canonical bundle is just what `zkwrap-sp1::canonicalize`
 produces from them: `vk.bin` is decoded on the fly from `sp1-verifier`'s
 embedded VK (no separate generation step), and
 `proof.bin` (= `proof_bytes.bin[100..356]`) / `public_inputs.bin` (the 5 inputs)
-/ `meta.json` follow from the raw artifacts. See
-`docs/research/sp1-artifact-format-v6.md`.
+/ `meta.json` follow from the raw artifacts.

@@ -96,7 +96,7 @@ See [`examples/`](examples/) for a runnable end-to-end examples for Risc0 and SP
 | `zkwrap-rs/zkwrap-prover` (Rust) | Off-chain prover driver: a `Prover` trait + `GnarkCliProver`, which spawns `zkwrap-gnark prove`. |
 | `examples/{risc0,sp1}-aiken-{groth16,plonk}/` | **Runnable end-to-end demos** across the system × backend matrix; `risc0-aiken-groth16` is the tutorial. Each goes from a guest to a green `aiken check`. |
 | `fixtures/` | Committed test fixtures: trusted setups, canonical inner proofs, outer proofs, and per-system source artifacts. |
-| `docs/` | `adr/` decisions · `schemas/` data contracts · `research/` notes · `journal.md` log. |
+| `docs/` | `adr/` decisions · `schemas/` data contracts. |
 | `experiments/` | Exploratory spikes (e.g. the hand-written Aiken verifier the generator was lifted from). |
 
 ## License

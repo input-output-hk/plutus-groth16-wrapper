@@ -260,7 +260,6 @@ pub fn verify(
 
 // =====================================================================
 // Inner layer — RISC Zero journal authentication chain
-// (see docs/research/risc0-artifact-format.md §6, §6a)
 //
 // Reconstructs claim_digest on-chain from journal_bytes using the
 // RISC Zero `tagged_struct` hash convention. Three SHA-256 calls.

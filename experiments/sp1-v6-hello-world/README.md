@@ -41,4 +41,3 @@ Artifacts land in `fixtures/` (`proof_bytes.bin`, `raw_proof_256.bin`,
 
 Circuit `v6.1.0` has **5** Groth16 public inputs (v3.0.0 had 2):
 `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`.
-Full write-up: [`docs/research/sp1-artifact-format-v6.md`](../../docs/research/sp1-artifact-format-v6.md).

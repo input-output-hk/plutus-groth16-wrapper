@@ -37,7 +37,6 @@ use crate::SYSTEM_ID;
 ///   [32..64]  vk_root        (public input 3)
 ///   [64..96]  proof_nonce    (public input 4)
 ///   [96..352] raw gnark proof (Ar‖Bs‖Krs, 256 B uncompressed)
-/// See `docs/research/sp1-artifact-format-v6.md` §3.
 const ENCODED_PROOF_LEN: usize = 352;
 const RAW_PROOF_OFFSET: usize = 96;
 
