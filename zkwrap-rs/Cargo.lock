@@ -3938,9 +3938,9 @@ dependencies = [
 name = "zkwrap-sp1"
 version = "0.1.0"
 dependencies = [
- "ark-bn254 0.5.0",
- "ark-ff 0.5.0",
- "ark-groth16 0.5.0",
+ "ark-bn254 0.6.0",
+ "ark-ff 0.6.0",
+ "ark-groth16 0.6.0",
  "hex",
  "serde",
  "serde_json",
