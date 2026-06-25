@@ -7,7 +7,7 @@
 //!
 //! ```text
 //! zkwrap-risc0 gen-verifier \
-//!     --canonical   out/canonical          # Canonicalized::write_to bundle (codegen consts)
+//!     --canonical   out/canonical          # CanonicalBundle::write_to bundle (codegen consts)
 //!     --receipt     out/receipt.json        # the RISC Zero receipt (journal + claim digest)
 //!     --outer-proof out/outer-proof.json    # the gnark outer proof (inner_vk_hash + inputs)
 //!     --setup       fixtures/groth16-setup  # the trusted setup dir (reads outer_vk.json)
@@ -27,7 +27,7 @@ use std::process::{Command, ExitCode};
 
 use risc0_zkvm::Receipt;
 use zkwrap_core::parse_outer_proof;
-use zkwrap_risc0::{build_validator, Canonicalized, Risc0ValidatorRequest};
+use zkwrap_risc0::{build_validator, CanonicalBundle, Risc0CodegenData, Risc0ValidatorRequest};
 
 const DEFAULT_PROJECT_NAME: &str = "zkwrap/risc0_verifier";
 
@@ -66,7 +66,7 @@ USAGE:
 Generate an Aiken validator project from on-disk artifacts (no proving).
 
 OPTIONS:
-    --canonical <dir>     canonical inner-proof bundle (Canonicalized::write_to)
+    --canonical <dir>     canonical inner-proof bundle (CanonicalBundle::write_to)
     --receipt <file>      RISC Zero receipt JSON (journal + claim digest)
     --outer-proof <file>  gnark outer proof JSON (inner_vk_hash + public inputs)
     --setup <dir>         trusted-setup dir; reads <dir>/outer_vk.json
@@ -110,7 +110,7 @@ fn gen_verifier(args: &[String]) -> Result<(), BoxErr> {
     let out = out.ok_or("missing --out")?;
 
     // Reconstruct the inputs `build_validator` needs, from disk.
-    let canonical = Canonicalized::read_from(&canonical)
+    let canonical = CanonicalBundle::<Risc0CodegenData>::read_from(&canonical)
         .map_err(|e| format!("reading canonical bundle: {e}"))?;
     let receipt: Receipt = serde_json::from_str(&std::fs::read_to_string(&receipt)?)
         .map_err(|e| format!("parsing receipt JSON: {e}"))?;
@@ -138,7 +138,10 @@ fn gen_verifier(args: &[String]) -> Result<(), BoxErr> {
     if check {
         aiken_check(&out)?;
     } else {
-        println!("run `cd {} && aiken check` to validate on-chain.", out.display());
+        println!(
+            "run `cd {} && aiken check` to validate on-chain.",
+            out.display()
+        );
     }
     Ok(())
 }

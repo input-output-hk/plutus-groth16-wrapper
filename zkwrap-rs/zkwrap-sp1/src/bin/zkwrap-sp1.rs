@@ -5,7 +5,7 @@
 //!
 //! ```text
 //! zkwrap-sp1 gen-verifier \
-//!     --canonical      out/canonical          # Canonicalized::write_to bundle (codegen consts + proof_nonce)
+//!     --canonical      out/canonical          # CanonicalBundle::write_to bundle (codegen consts + proof_nonce)
 //!     --public-values  out/public_values.bin  # the bytes the guest committed
 //!     --outer-proof    out/outer-proof.json   # the gnark outer proof (inner_vk_hash + inputs)
 //!     --setup          fixtures/groth16-setup # the trusted setup dir (reads outer_vk.json)
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use zkwrap_core::parse_outer_proof;
-use zkwrap_sp1::{build_validator, Canonicalized, Sp1ValidatorRequest};
+use zkwrap_sp1::{build_validator, CanonicalBundle, Sp1CodegenData, Sp1ValidatorRequest};
 
 const DEFAULT_PROJECT_NAME: &str = "zkwrap/sp1_verifier";
 
@@ -64,7 +64,7 @@ USAGE:
 Generate an Aiken validator project from on-disk artifacts.
 
 OPTIONS:
-    --canonical <dir>      canonical inner-proof bundle (Canonicalized::write_to)
+    --canonical <dir>      canonical inner-proof bundle (CanonicalBundle::write_to)
     --public-values <file> the bytes the guest committed
     --outer-proof <file>   gnark outer proof JSON (inner_vk_hash + public inputs)
     --setup <dir>          trusted-setup dir; reads <dir>/outer_vk.json
@@ -108,10 +108,10 @@ fn gen_verifier(args: &[String]) -> Result<(), BoxErr> {
     let out = out.ok_or("missing --out")?;
 
     // Reconstruct the inputs `build_validator` needs, from disk.
-    let canonical = Canonicalized::read_from(&canonical)
+    let canonical = CanonicalBundle::<Sp1CodegenData>::read_from(&canonical)
         .map_err(|e| format!("reading canonical bundle: {e}"))?;
-    let public_values = std::fs::read(&public_values)
-        .map_err(|e| format!("reading public values: {e}"))?;
+    let public_values =
+        std::fs::read(&public_values).map_err(|e| format!("reading public values: {e}"))?;
     let outer = parse_outer_proof(&std::fs::read_to_string(&outer_proof)?)
         .map_err(|e| format!("parsing outer proof: {e}"))?;
     let vk_json = std::fs::read_to_string(setup.join("outer_vk.json"))
@@ -136,7 +136,10 @@ fn gen_verifier(args: &[String]) -> Result<(), BoxErr> {
     if check {
         aiken_check(&out)?;
     } else {
-        println!("run `cd {} && aiken check` to validate on-chain.", out.display());
+        println!(
+            "run `cd {} && aiken check` to validate on-chain.",
+            out.display()
+        );
     }
     Ok(())
 }

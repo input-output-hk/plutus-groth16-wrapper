@@ -35,7 +35,7 @@ A generated validator binds to **one inner system *and* one guest program** — 
 - **Outer VK points** — from `outer_vk.json` (the trusted-setup output), crossing the language boundary as **data**, not generated Aiken. Codegen stays uniformly in Rust regardless of which prover (Go gnark, future Rust Halo2) produced the proof.
 - **`InnerVKHash`** — read from `outer_proof.json` (gnark is the single source of truth; see [ADR-0005](0005-poseidon2-bls12381-for-inner-vk-hash.md)).
 - **Outer-backend identifier** (e.g. `gnark-groth16-bls12381`) — in `outer_vk.json` (authoritative) and echoed in `outer_proof.json`. Keys the Composer's choice of outer layer; lets it cross-check that proof and VK came from the same backend.
-- **Per-guest inner-layer constants** — a `codegen` section in the canonical inner proof's `meta.json`, opaque to the prover binary (Go reads only `system_id` + `n_real`). See [canonical-inner-proof.md](../schemas/canonical-inner-proof.md). There is no separate sidecar.
+- **Per-guest inner-layer constants** — a `codegen` section in the canonical inner proof's `meta.json`, opaque to the prover binary (Go reads only `system_id` + `n_real`). See [canonical-inner-proof.md](../schemas/canonical-inner-proof.md). There is no separate sidecar. On the Rust side this section is a *typed* per-plugin struct, not an opaque blob — see the [typed-codegen refinement](#refinement-typed-codegen).
 
 ## Plugin interface (the surface a new system author implements)
 
@@ -50,9 +50,10 @@ pub trait InnerCodegen {
     fn system_id(&self) -> &str;                       // keys the inner layer; matches meta.json
     fn n_real(&self) -> usize;                         // length the inner layer must produce
     fn module_source(&self) -> &'static str;           // include_str!("…/risc0.ak")
-    fn wiring(&self, codegen: &Value) -> InnerWiring;  // const lines + call expr
 }
 ```
+
+The per-guest *wiring* (const lines + call expr) is **not** a trait method — see the [typed-codegen refinement](#refinement-typed-codegen) below.
 
 A symmetric trait makes the proving engine pluggable on the same mechanism:
 
@@ -68,6 +69,18 @@ pub trait OuterCodegen {
 The Composer knows **only the two traits**: it resolves `backend_id → impl OuterCodegen` and `system_id → impl InnerCodegen`, asks the backend to render the outer layer (VK baked) and the plugin for its vendored inner-layer source + wiring, and assembles the project. No per-backend or per-system knowledge in the Composer.
 
 Adding a system = new plugin crate impl `Canonicalize` + `InnerCodegen` + one `.ak` file. Adding a backend = new crate impl `OuterCodegen` + one `.ak` file. Neither touches the Composer, the other axis, or the Go prover.
+
+## Refinement (typed codegen)
+
+*Refines the mechanics below; the two-axis decision, the seam, and the meta.json placement are unchanged.*
+
+The original sketch had `InnerCodegen::wiring(&self, codegen: &serde_json::Value) -> InnerWiring` — the per-guest constants travelled as an **opaque JSON blob** and each plugin parsed it by hand (`get`/`as_str`/`hex::decode`, per field). That is a stringly-typed seam with no compile-time schema. Refined to:
+
+- **Typed per-plugin codegen.** Each plugin defines a serde struct for its constants (`Risc0CodegenData`, `Sp1CodegenData`) whose fields are validated at deserialize (32-byte hex via the shared `zkwrap_core::Hex32`). The struct *owns* its `wiring(&self) -> InnerWiring` — the logic moved off the trait onto the data.
+- **Generic bundle in core.** `Canonicalized` becomes `zkwrap_core::CanonicalBundle<C>` — the system-agnostic `CanonicalInnerProof` plus typed `codegen: C`. Core never names a plugin's codegen type; `write_to`/`read_from` (de)serialize `C` via serde, with `C` nested under `meta.json`'s `codegen` key exactly as before (still prover-opaque; Go still reads only `system_id` + `n_real`).
+- **`InnerCodegen` loses `wiring`.** It keeps only the static facts (`system_id`, `n_real`, `module_name`, `module_source`). The Composer's `ComposeRequest` takes a ready-made `&InnerWiring` (computed by the plugin's `build_validator` from its typed codegen), so `serde_json::Value` is gone from the codegen path and `compose` stays object-safe.
+
+Net: the per-guest schema is explicit and compile-checked, hex/length errors surface at deserialize, and the plugin interface for a new system is `Canonicalize` + `InnerCodegen` (static) + a serde codegen struct with a `wiring()` method.
 
 ## Output artifact
 

@@ -3,7 +3,7 @@
 //! `aiken check` the generated project.
 //!
 //! This is the real acceptance test for the CLI: it exercises arg parsing, the
-//! on-disk reconstruction ([`Canonicalized::read_from`] + the runtime backend
+//! on-disk reconstruction ([`CanonicalBundle::read_from`] + the runtime backend
 //! dispatch in [`zkwrap_core::parse_outer_proof`]), project materialization, and
 //! the actual on-chain verifier logic against a real proof. The two small unit
 //! tests below pin the dispatcher's behavior directly.
@@ -19,7 +19,7 @@ use risc0_zkvm::sha::Digest;
 use risc0_zkvm::Receipt;
 
 use zkwrap_core::parse_outer_proof;
-use zkwrap_risc0::{canonicalize, Canonicalized};
+use zkwrap_risc0::{canonicalize, CanonicalBundle, Risc0CodegenData};
 
 fn repo_path(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -125,7 +125,7 @@ fn read_from_round_trips_write_to() {
     let _ = std::fs::remove_dir_all(&dir);
     canonical.write_to(&dir).unwrap();
 
-    let recovered = Canonicalized::read_from(&dir).unwrap();
+    let recovered = CanonicalBundle::<Risc0CodegenData>::read_from(&dir).unwrap();
     assert_eq!(recovered.proof, canonical.proof, "proof round-trip");
     assert_eq!(recovered.codegen, canonical.codegen, "codegen round-trip");
 

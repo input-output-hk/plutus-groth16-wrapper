@@ -15,16 +15,17 @@ use thiserror::Error;
 
 use zkwrap_core::outer_tests::{ba, flip_first_byte, int, int_list, OuterLayer};
 use zkwrap_core::{
-    compose, CodegenError, ComposeRequest, GeneratedProject, InnerCodegen, OuterProof, TestBlock,
+    compose, CanonicalBundle, CodegenError, ComposeRequest, GeneratedProject, InnerCodegen,
+    OuterProof, TestBlock,
 };
 
-use crate::{Canonicalized, Sp1Codegen};
+use crate::{Sp1Codegen, Sp1CodegenData};
 
 /// Inputs to [`build_validator`]. All borrowed — the host already holds each.
 pub struct Sp1ValidatorRequest<'a> {
     /// The canonical bundle from [`canonicalize`](crate::canonicalize); its
     /// `codegen` section (`sp1_program_vkey_hash`/`exit_code`/`vk_root`) drives the wiring.
-    pub canonical: &'a Canonicalized,
+    pub canonical: &'a CanonicalBundle<Sp1CodegenData>,
     /// The outer proof from the prover. Its backend selects the outer layer.
     pub outer_proof: &'a dyn OuterProof,
     /// Raw `outer_vk.json` text from the trusted setup.
@@ -67,7 +68,7 @@ pub fn build_validator(req: &Sp1ValidatorRequest) -> Result<GeneratedProject, Bu
         inner: &Sp1Codegen,
         vk_json: req.outer_vk_json,
         inner_vk_hash: proof.inner_vk_hash(),
-        codegen_meta: &req.canonical.codegen,
+        wiring: &req.canonical.codegen.wiring(),
         tests: &tests,
     })?)
 }

@@ -16,9 +16,9 @@ pub mod codegen;
 pub mod validator;
 
 pub use canonicalize::{canonicalize, CanonicalizeError};
-pub use zkwrap_core::{Canonicalized, ReadBundleError};
-pub use codegen::Sp1Codegen;
+pub use codegen::{Sp1Codegen, Sp1CodegenData};
 pub use validator::{build_validator, BuildValidatorError, Sp1ValidatorRequest};
+pub use zkwrap_core::{CanonicalBundle, ReadBundleError};
 
 /// `system_id` matching the canonical inner proof's `meta.json`. Shared by both
 /// plugin halves: the codegen keys on it; the serializer stamps it.

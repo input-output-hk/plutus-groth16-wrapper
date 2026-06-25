@@ -24,8 +24,11 @@ use sp1_verifier::{
 };
 use thiserror::Error;
 
-use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, Canonicalized};
+use zkwrap_core::{
+    Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalBundle, CanonicalInnerProof, Hex32,
+};
 
+use crate::codegen::Sp1CodegenData;
 use crate::SYSTEM_ID;
 
 /// SP1 v6 Groth16 `encoded_proof` layout (the bytes after the 4-byte vkey-hash
@@ -75,7 +78,7 @@ pub enum CanonicalizeError {
 pub fn canonicalize(
     proof: &SP1Proof,
     public_values: &[u8],
-) -> Result<Canonicalized, CanonicalizeError> {
+) -> Result<CanonicalBundle<Sp1CodegenData>, CanonicalizeError> {
     let SP1Proof::Groth16(groth16) = proof else {
         return Err(CanonicalizeError::NotGroth16);
     };
@@ -145,13 +148,13 @@ pub fn canonicalize(
 
     // The per-program codegen section the Composer bakes as consts. `proof_nonce`
     // is per-proof, so it is NOT here — it rides in the redeemer with `public_values`.
-    let codegen = serde_json::json!({
-        "sp1_program_vkey_hash": hex::encode(vkey_hash),
-        "exit_code": hex::encode(exit_code),
-        "vk_root": hex::encode(vk_root),
-    });
+    let codegen = Sp1CodegenData {
+        sp1_program_vkey_hash: Hex32(vkey_hash),
+        exit_code: Hex32(exit_code),
+        vk_root: Hex32(vk_root),
+    };
 
-    Ok(Canonicalized { proof, codegen })
+    Ok(CanonicalBundle { proof, codegen })
 }
 
 /// SP1's `committed_values_digest`: `SHA256(public_values)` with the top 3 bits
@@ -289,8 +292,8 @@ mod tests {
         );
         assert_eq!(c.proof.public_inputs.len(), 5);
         assert_eq!(c.proof.system_id.as_ref(), "sp1-v6");
-        assert_eq!(c.codegen["exit_code"].as_str().unwrap().len(), 64);
-        assert_eq!(c.codegen["vk_root"].as_str().unwrap().len(), 64);
+        assert_eq!(hex::encode(c.codegen.exit_code.0).len(), 64);
+        assert_eq!(hex::encode(c.codegen.vk_root.0).len(), 64);
     }
 
     /// committed_values_digest = SHA256(public_values) mod 2^253 — the top

@@ -14,6 +14,6 @@ pub use outer_proof::{parse_outer_proof, OuterProof};
 
 pub mod inner;
 pub use inner::{
-    Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, Canonicalized, ParseError,
-    ReadBundleError,
+    Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalBundle, CanonicalInnerProof, Hex32,
+    ParseError, ReadBundleError,
 };

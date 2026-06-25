@@ -50,7 +50,6 @@ pub trait OuterProof {
     fn codegen(&self) -> &'static dyn OuterCodegen;
 }
 
-
 pub fn parse_outer_proof(json: &str) -> Result<Box<dyn OuterProof>, OuterParseError> {
     use crate::outer_backends::{gnark_groth16, gnark_plonk};
     use crate::{Groth16OuterProof, PlonkOuterProof};

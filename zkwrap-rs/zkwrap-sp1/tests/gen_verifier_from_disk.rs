@@ -14,7 +14,7 @@ use std::process::Command;
 use sp1_verifier::{Groth16Bn254Proof, SP1Proof};
 
 use zkwrap_core::parse_outer_proof;
-use zkwrap_sp1::{canonicalize, Canonicalized};
+use zkwrap_sp1::{canonicalize, CanonicalBundle, Sp1CodegenData};
 
 fn repo_path(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -34,7 +34,7 @@ const PROOF_REL: &str = "fixtures/outer-proofs/sp1-groth16-outer-proof.json";
 
 /// Canonicalize the committed raw SP1 fixtures (as a host would), to stage a
 /// codegen-bearing bundle on disk.
-fn sp1_canonical(public_values: &[u8]) -> Canonicalized {
+fn sp1_canonical(public_values: &[u8]) -> CanonicalBundle<Sp1CodegenData> {
     let proof_bytes = read_bytes("fixtures/sp1-hello-world/proof_bytes.bin");
     let manifest: serde_json::Value =
         serde_json::from_str(&read("fixtures/sp1-hello-world/manifest.json")).unwrap();
