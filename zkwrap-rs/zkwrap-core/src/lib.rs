@@ -10,7 +10,10 @@ pub use outer_backends::gnark_plonk::artifacts::{PlonkOuterProof, PlonkVk};
 pub use outer_backends::gnark_plonk::PlonkBackend;
 
 pub mod outer_proof;
-pub use outer_proof::OuterProof;
+pub use outer_proof::{parse_outer_proof, OuterProof};
 
 pub mod inner;
-pub use inner::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, ParseError};
+pub use inner::{
+    Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, Canonicalized, ParseError,
+    ReadBundleError,
+};

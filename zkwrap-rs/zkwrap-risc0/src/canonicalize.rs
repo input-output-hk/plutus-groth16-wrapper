@@ -11,7 +11,6 @@
 //! ```
 
 use std::borrow::Cow;
-use std::path::Path;
 
 use thiserror::Error;
 
@@ -21,30 +20,9 @@ use ark_serialize::CanonicalDeserialize;
 use risc0_circuit_recursion::control_id::{ALLOWED_CONTROL_ROOT, BN254_IDENTITY_CONTROL_ID};
 use risc0_zkvm::sha::{Digest, Digestible};
 use risc0_zkvm::{InnerReceipt, Receipt};
-use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof};
+use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, Canonicalized};
 
 use crate::SYSTEM_ID;
-
-/// The full canonical inner-proof bundle the plugin emits: the cryptographic
-/// proof (the `plugin → prover` contract, consumed by `zkwrap-gnark`) plus the
-/// opaque `codegen` section (the `plugin → Composer` contract, baked into
-/// `meta.json` and consumed at deploy time; ignored by the prover).
-///
-/// The two are kept separate on purpose: `CanonicalInnerProof` stays the pure,
-/// system-agnostic crypto contract, and the system-specific `codegen` data rides
-/// alongside it here. See `zkwrap-core::inner` and ADR-0007.
-pub struct Canonicalized {
-    pub proof: CanonicalInnerProof,
-    pub codegen: serde_json::Value,
-}
-
-impl Canonicalized {
-    /// Persist the whole bundle to `dir`: `vk.bin`, `proof.bin`,
-    /// `public_inputs.bin`, and `meta.json` (with the `codegen` section).
-    pub fn write_to(&self, dir: &Path) -> std::io::Result<()> {
-        self.proof.write_to(dir, Some(&self.codegen))
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum CanonicalizeError {

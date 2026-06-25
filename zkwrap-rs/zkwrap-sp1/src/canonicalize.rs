@@ -13,7 +13,6 @@
 //! ```
 
 use std::borrow::Cow;
-use std::path::Path;
 
 use ark_bn254::{Bn254, Fq, Fr, G1Affine, G2Affine};
 use ark_ff::{BigInteger, PrimeField};
@@ -25,7 +24,7 @@ use sp1_verifier::{
 };
 use thiserror::Error;
 
-use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof};
+use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof, Canonicalized};
 
 use crate::SYSTEM_ID;
 
@@ -38,23 +37,6 @@ use crate::SYSTEM_ID;
 /// See `docs/research/sp1-artifact-format-v6.md` §3.
 const ENCODED_PROOF_LEN: usize = 352;
 const RAW_PROOF_OFFSET: usize = 96;
-
-/// The full canonical inner-proof bundle the plugin emits: the cryptographic
-/// proof (consumed by `zkwrap-gnark`) plus the opaque `codegen` section
-/// (baked into `meta.json`, consumed at deploy time). Mirrors
-/// `zkwrap_risc0::Canonicalized`.
-pub struct Canonicalized {
-    pub proof: CanonicalInnerProof,
-    pub codegen: serde_json::Value,
-}
-
-impl Canonicalized {
-    /// Persist the whole bundle to `dir`: `vk.bin`, `proof.bin`,
-    /// `public_inputs.bin`, and `meta.json` (with the `codegen` section).
-    pub fn write_to(&self, dir: &Path) -> std::io::Result<()> {
-        self.proof.write_to(dir, Some(&self.codegen))
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum CanonicalizeError {

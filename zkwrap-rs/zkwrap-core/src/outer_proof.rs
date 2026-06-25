@@ -10,6 +10,8 @@ use crate::outer_backends::gnark_groth16::artifacts::OuterParseError;
 /// off-chain pipeline needs from a proof — its public inputs, the codegen for
 /// its backend, and the redeemer field hex — is reachable here without naming
 /// the concrete type.
+/// The per-backend `impl OuterProof` blocks live with their concrete proof
+/// types, in `outer_backends::gnark_groth16::artifacts` / `gnark_plonk::artifacts`.
 pub trait OuterProof {
     /// Parse this backend's `outer_proof.json`.
     fn from_json(json: &str) -> Result<Self, OuterParseError>
@@ -48,5 +50,21 @@ pub trait OuterProof {
     fn codegen(&self) -> &'static dyn OuterCodegen;
 }
 
-// The per-backend `impl OuterProof` blocks live with their concrete proof
-// types, in `outer_backends::gnark_groth16::artifacts` / `gnark_plonk::artifacts`.
+
+pub fn parse_outer_proof(json: &str) -> Result<Box<dyn OuterProof>, OuterParseError> {
+    use crate::outer_backends::{gnark_groth16, gnark_plonk};
+    use crate::{Groth16OuterProof, PlonkOuterProof};
+
+    #[derive(serde::Deserialize)]
+    struct Tag {
+        backend: String,
+    }
+    let Tag { backend } = serde_json::from_str(json)?;
+    match backend.as_str() {
+        gnark_groth16::artifacts::BACKEND_ID => Ok(Box::new(Groth16OuterProof::from_json(json)?)),
+        gnark_plonk::artifacts::BACKEND_ID => Ok(Box::new(PlonkOuterProof::from_json(json)?)),
+        other => Err(OuterParseError::Shape(format!(
+            "unknown outer backend {other:?}"
+        ))),
+    }
+}

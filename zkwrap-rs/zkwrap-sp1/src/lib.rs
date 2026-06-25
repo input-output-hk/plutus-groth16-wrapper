@@ -15,7 +15,8 @@ pub mod canonicalize;
 pub mod codegen;
 pub mod validator;
 
-pub use canonicalize::{canonicalize, CanonicalizeError, Canonicalized};
+pub use canonicalize::{canonicalize, CanonicalizeError};
+pub use zkwrap_core::{Canonicalized, ReadBundleError};
 pub use codegen::Sp1Codegen;
 pub use validator::{build_validator, BuildValidatorError, Sp1ValidatorRequest};
 
