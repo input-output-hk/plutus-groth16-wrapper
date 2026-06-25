@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use minijinja::{context, Environment};
 use serde_json::Value;
 
-use crate::codegen::{CodegenError, InnerCodegen, OuterCodegen};
+use crate::codegen::{CodegenError, InnerCodegen, InnerWiring, OuterCodegen};
 
 /// `validators/verify.ak` skeleton. The composition seam's *shape* is universal
 /// across every backend × system; only the lists laid out into it vary, so one
@@ -61,8 +61,9 @@ pub struct ComposeRequest<'a> {
     pub vk_json: &'a str,
     /// `inner_vk_hash` from `outer_proof.json` — raw lowercase hex, no `0x`.
     pub inner_vk_hash: &'a str,
-    /// The canonical inner proof's `meta.json` `codegen` section.
-    pub codegen_meta: &'a Value,
+    /// The inner layer's per-program wiring (consts, redeemer params, call
+    /// expression), computed by the plugin from its typed codegen.
+    pub wiring: &'a InnerWiring,
     /// Fixture tests to emit (see [`TestBlock`]). May be empty.
     pub tests: &'a [TestBlock],
 }
@@ -110,9 +111,8 @@ pub fn compose(req: &ComposeRequest) -> Result<GeneratedProject, CodegenError> {
     }
 
     let inner_src = req.inner.module_source();
-    let wiring = req.inner.wiring(req.codegen_meta)?;
 
-    let validator_src = render_validator(req, &wiring, n_real, max_inputs)?;
+    let validator_src = render_validator(req, req.wiring, n_real, max_inputs)?;
 
     let outer_mod = req.outer.module_name();
     let inner_mod = req.inner.module_name();

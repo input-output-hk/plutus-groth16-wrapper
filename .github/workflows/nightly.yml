@@ -78,7 +78,7 @@ jobs:
       # The universal outer setup (same MAX_INPUTS=8 circuit for every inner system).
       - name: Generate outer trusted setup (MAX_INPUTS=8)
         run: |
-          /tmp/zkwrap-gnark unsafe-setup --max-inputs 8 --out "$HOME/zkwrap-setup"
+          /tmp/zkwrap-gnark unsafe-setup --backend groth16 --max-inputs 8 --out "$HOME/zkwrap-setup"
           echo "ZKWRAP_SETUP_DIR=$HOME/zkwrap-setup" >> "$GITHUB_ENV"
 
       - name: Install aiken (pinned to the generated project's compiler)

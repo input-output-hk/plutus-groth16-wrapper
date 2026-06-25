@@ -1,5 +1,8 @@
 use std::borrow::Cow;
 
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
 /// BN254 Fr element: 32 bytes big-endian.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bn254Fr(pub [u8; 32]);
@@ -29,6 +32,12 @@ pub struct CanonicalInnerProof {
 }
 
 impl CanonicalInnerProof {
+    /// On-disk bundle file names
+    pub const VK_BIN: &'static str = "vk.bin";
+    pub const PROOF_BIN: &'static str = "proof.bin";
+    pub const PUBLIC_INPUTS_BIN: &'static str = "public_inputs.bin";
+    pub const META_JSON: &'static str = "meta.json";
+
     pub fn vk_bytes(&self) -> Vec<u8> {
         self.vk.to_bytes()
     }
@@ -46,36 +55,39 @@ impl CanonicalInnerProof {
     }
 
     pub fn meta_json(&self) -> String {
-        format!(
-            r#"{{"system_id":"{}","n_real":{}}}"#,
-            self.system_id,
-            self.public_inputs.len()
-        )
+        serde_json::to_string(&Meta {
+            system_id: self.system_id.as_ref().to_owned(),
+            n_real: self.public_inputs.len(),
+        })
+        .expect("Meta is always serializable")
     }
 
-    /// Persist the bundle to `dir` (created if missing): `vk.bin`, `proof.bin`,
-    /// `public_inputs.bin`, and `meta.json`. `meta.json` carries `system_id` +
-    /// `n_real`, plus an optional system-specific `codegen` section (opaque to
-    /// the prover binary; consumed by the deploy-time Composer).
-    pub fn write_to(
-        &self,
-        dir: &std::path::Path,
-        codegen: Option<&serde_json::Value>,
-    ) -> std::io::Result<()> {
+    /// Write the three cryptographic `.bin` files (no `meta.json`). The bundle
+    /// wrapper ([`CanonicalBundle::write_to`]) owns `meta.json` because the meta
+    /// shape depends on the per-system codegen type.
+    fn write_bin_files(&self, dir: &std::path::Path) -> std::io::Result<()> {
         std::fs::create_dir_all(dir)?;
-        std::fs::write(dir.join("vk.bin"), self.vk_bytes())?;
-        std::fs::write(dir.join("proof.bin"), self.proof_bytes())?;
-        std::fs::write(dir.join("public_inputs.bin"), self.public_inputs_bytes())?;
+        std::fs::write(dir.join(Self::VK_BIN), self.vk_bytes())?;
+        std::fs::write(dir.join(Self::PROOF_BIN), self.proof_bytes())?;
+        std::fs::write(
+            dir.join(Self::PUBLIC_INPUTS_BIN),
+            self.public_inputs_bytes(),
+        )?;
+        Ok(())
+    }
 
-        let mut meta = serde_json::json!({
-            "system_id": self.system_id.as_ref(),
-            "n_real": self.public_inputs.len(),
-        });
-        if let Some(cg) = codegen {
-            meta["codegen"] = cg.clone();
-        }
+    /// Persist the **prover-facing** bundle to `dir`: the three `.bin` files plus
+    /// a `meta.json` carrying only `system_id` + `n_real` (no `codegen` section).
+    /// This is all the gnark prover consumes. A deploy-time bundle that also
+    /// carries the per-system codegen uses [`CanonicalBundle::write_to`].
+    pub fn write_to(&self, dir: &std::path::Path) -> std::io::Result<()> {
+        self.write_bin_files(dir)?;
+        let meta = Meta {
+            system_id: self.system_id.as_ref().to_owned(),
+            n_real: self.public_inputs.len(),
+        };
         let meta_str = serde_json::to_string_pretty(&meta).map_err(std::io::Error::other)?;
-        std::fs::write(dir.join("meta.json"), meta_str)?;
+        std::fs::write(dir.join(Self::META_JSON), meta_str)?;
         Ok(())
     }
 
@@ -87,7 +99,10 @@ impl CanonicalInnerProof {
     ) -> Result<Self, ParseError> {
         let vk = Bn254Vk::from_bytes(vk_bytes)?;
         let proof = Bn254Proof::from_bytes(proof_bytes);
-        let (system_id, n_real) = parse_meta_json(meta_json)?;
+        // Parse with serde; unknown keys (e.g. the `codegen` section `write_to`
+        // adds) are ignored, and pretty/compact formatting is handled uniformly.
+        let Meta { system_id, n_real } =
+            serde_json::from_str(meta_json).map_err(|_| ParseError::InvalidMeta)?;
         if pi_bytes.len() != n_real * 32 {
             return Err(ParseError::PublicInputsLen);
         }
@@ -108,29 +123,124 @@ impl CanonicalInnerProof {
     }
 }
 
-fn parse_meta_json(s: &str) -> Result<(String, usize), ParseError> {
-    let system_id = extract_json_string(s, "system_id")?;
-    let n_real = extract_json_uint(s, "n_real")?;
-    Ok((system_id, n_real))
+/// A 32-byte value that (de)serializes as a lowercase hex string — the on-disk
+/// form of every per-program codegen constant (image ids, digests, vkey hashes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Hex32(pub [u8; 32]);
+
+impl serde::Serialize for Hex32 {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&hex::encode(self.0))
+    }
 }
 
-fn extract_json_string(json: &str, key: &str) -> Result<String, ParseError> {
-    let needle = format!(r#""{key}":""#);
-    let start = json.find(&needle).ok_or(ParseError::InvalidMeta)? + needle.len();
-    let end = json[start..].find('"').ok_or(ParseError::InvalidMeta)? + start;
-    Ok(json[start..end].to_owned())
+impl<'de> serde::Deserialize<'de> for Hex32 {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let s = String::deserialize(d)?;
+        let bytes = hex::decode(&s).map_err(D::Error::custom)?;
+        let arr: [u8; 32] = bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| D::Error::custom(format!("expected 32 bytes, got {}", bytes.len())))?;
+        Ok(Hex32(arr))
+    }
 }
 
-fn extract_json_uint(json: &str, key: &str) -> Result<usize, ParseError> {
-    let needle = format!(r#""{key}":"#);
-    let start = json.find(&needle).ok_or(ParseError::InvalidMeta)? + needle.len();
-    let tail = &json[start..];
-    let end = tail
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(tail.len());
-    tail[..end]
-        .parse::<usize>()
-        .map_err(|_| ParseError::InvalidMeta)
+/// The full on-disk canonical bundle: the system-agnostic
+/// [`CanonicalInnerProof`] (the `plugin → prover` crypto contract) plus the
+/// per-system `codegen` constants `C` (the `plugin → Composer` contract, nested
+/// under `meta.json`'s `codegen` key and consumed at deploy time; ignored by the
+/// prover).
+///
+/// Generic over `C` so core stays system-agnostic — it never names a plugin's
+/// codegen type — while each plugin gets a *typed*, serde-validated codegen
+/// (`CanonicalBundle<Risc0CodegenData>` etc.).
+#[derive(Debug, Clone)]
+pub struct CanonicalBundle<C> {
+    pub proof: CanonicalInnerProof,
+    pub codegen: C,
+}
+
+/// The `meta.json` shape with the codegen section: the prover-facing fields plus
+/// the per-system `codegen` object. Borrowing form for serialization.
+#[derive(Serialize)]
+struct MetaWithCodegen<'a, C> {
+    system_id: &'a str,
+    n_real: usize,
+    codegen: &'a C,
+}
+
+/// Owned form for deserialization — only the `codegen` section is needed (the
+/// prover fields are recovered via [`CanonicalInnerProof::from_parts`]).
+#[derive(Deserialize)]
+struct CodegenEnvelope<C> {
+    codegen: Option<C>,
+}
+
+impl<C: Serialize + serde::de::DeserializeOwned> CanonicalBundle<C> {
+    /// Persist the whole bundle to `dir`: `vk.bin`, `proof.bin`,
+    /// `public_inputs.bin`, and `meta.json` (with the `codegen` section).
+    pub fn write_to(&self, dir: &std::path::Path) -> std::io::Result<()> {
+        self.proof.write_bin_files(dir)?;
+        let meta = MetaWithCodegen {
+            system_id: self.proof.system_id.as_ref(),
+            n_real: self.proof.public_inputs.len(),
+            codegen: &self.codegen,
+        };
+        let meta_str = serde_json::to_string_pretty(&meta).map_err(std::io::Error::other)?;
+        std::fs::write(dir.join(CanonicalInnerProof::META_JSON), meta_str)?;
+        Ok(())
+    }
+
+    /// Re-read a bundle previously written by [`write_to`](Self::write_to). The
+    /// inverse of `write_to`: reconstructs the [`CanonicalInnerProof`] from the
+    /// three `.bin` files and deserializes the typed `codegen` section out of
+    /// `meta.json`. Lets a tool that only has the on-disk bundle (e.g. a plugin's
+    /// `gen-verifier` CLI) recover the deploy-time codegen without the live
+    /// native proof.
+    pub fn read_from(dir: &std::path::Path) -> Result<Self, ReadBundleError> {
+        let vk = std::fs::read(dir.join(CanonicalInnerProof::VK_BIN))?;
+        let proof_bytes = std::fs::read(dir.join(CanonicalInnerProof::PROOF_BIN))?;
+        let proof: [u8; 256] = proof_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| ReadBundleError::ProofLen(proof_bytes.len()))?;
+        let pi = std::fs::read(dir.join(CanonicalInnerProof::PUBLIC_INPUTS_BIN))?;
+        let meta_str = std::fs::read_to_string(dir.join(CanonicalInnerProof::META_JSON))?;
+
+        let proof = CanonicalInnerProof::from_parts(&vk, &proof, &pi, &meta_str)
+            .map_err(ReadBundleError::Parse)?;
+
+        let envelope: CodegenEnvelope<C> = serde_json::from_str(&meta_str)?;
+        let codegen = envelope.codegen.ok_or(ReadBundleError::MissingCodegen)?;
+
+        Ok(CanonicalBundle { proof, codegen })
+    }
+}
+
+/// Why [`CanonicalBundle::read_from`] could not reconstruct a bundle from disk.
+#[derive(Debug, Error)]
+pub enum ReadBundleError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("proof.bin is {0} bytes, want 256")]
+    ProofLen(usize),
+    #[error("canonical proof parse: {0:?}")]
+    Parse(ParseError),
+    #[error("meta.json: {0}")]
+    Meta(#[from] serde_json::Error),
+    #[error("meta.json has no `codegen` section")]
+    MissingCodegen,
+}
+
+/// The prover-facing `meta.json` contract: the two fields the gnark prover reads
+/// (it ignores any additional keys, such as the `codegen` section). Mirrors the
+/// Go side's `metaFile` struct; serialized in declaration order.
+#[derive(Serialize, Deserialize)]
+struct Meta {
+    system_id: String,
+    n_real: usize,
 }
 
 /// Error type for canonical proof deserialization.
@@ -262,29 +372,54 @@ mod tests {
         assert_eq!(result, Err(ParseError::IcLenMismatch));
     }
 
+    /// A stand-in for a plugin's typed codegen, to exercise the generic bundle.
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    struct TestCodegen {
+        image_id: String,
+    }
+
     #[test]
-    fn write_to_persists_bundle_with_codegen() {
-        let p = make_test_proof(2);
+    fn bundle_write_then_read_round_trips() {
+        let bundle = CanonicalBundle {
+            proof: make_test_proof(2),
+            codegen: TestCodegen {
+                image_id: "deadbeef".to_owned(),
+            },
+        };
         let dir = std::env::temp_dir().join(format!("zkwrap_write_to_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
 
-        let codegen = serde_json::json!({ "image_id": "deadbeef" });
-        p.write_to(&dir, Some(&codegen)).unwrap();
+        bundle.write_to(&dir).unwrap();
 
-        assert_eq!(std::fs::read(dir.join("vk.bin")).unwrap(), p.vk_bytes());
+        // The crypto files plus a meta.json with the nested typed codegen.
         assert_eq!(
-            std::fs::read(dir.join("proof.bin")).unwrap(),
-            p.proof_bytes()
+            std::fs::read(dir.join(CanonicalInnerProof::PROOF_BIN)).unwrap(),
+            bundle.proof.proof_bytes()
         );
-        assert_eq!(
-            std::fs::read(dir.join("public_inputs.bin")).unwrap(),
-            p.public_inputs_bytes()
-        );
-        let meta: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(dir.join("meta.json")).unwrap()).unwrap();
+        let meta: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.join(CanonicalInnerProof::META_JSON)).unwrap(),
+        )
+        .unwrap();
         assert_eq!(meta["system_id"], "risc0-v3");
         assert_eq!(meta["n_real"], 2);
         assert_eq!(meta["codegen"]["image_id"], "deadbeef");
+
+        // read_from is the inverse: same proof, same typed codegen.
+        let recovered: CanonicalBundle<TestCodegen> = CanonicalBundle::read_from(&dir).unwrap();
+        assert_eq!(recovered.proof, bundle.proof);
+        assert_eq!(recovered.codegen, bundle.codegen);
+
+        // A bundle with no codegen section is rejected.
+        make_test_proof(2).write_bin_files(&dir).unwrap();
+        std::fs::write(
+            dir.join(CanonicalInnerProof::META_JSON),
+            r#"{"system_id":"risc0-v3","n_real":2}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            CanonicalBundle::<TestCodegen>::read_from(&dir),
+            Err(ReadBundleError::MissingCodegen)
+        ));
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

@@ -11,7 +11,6 @@
 //! ```
 
 use std::borrow::Cow;
-use std::path::Path;
 
 use thiserror::Error;
 
@@ -21,30 +20,12 @@ use ark_serialize::CanonicalDeserialize;
 use risc0_circuit_recursion::control_id::{ALLOWED_CONTROL_ROOT, BN254_IDENTITY_CONTROL_ID};
 use risc0_zkvm::sha::{Digest, Digestible};
 use risc0_zkvm::{InnerReceipt, Receipt};
-use zkwrap_core::{Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalInnerProof};
+use zkwrap_core::{
+    Bn254Fr, Bn254G1, Bn254G2, Bn254Proof, Bn254Vk, CanonicalBundle, CanonicalInnerProof, Hex32,
+};
 
+use crate::codegen::Risc0CodegenData;
 use crate::SYSTEM_ID;
-
-/// The full canonical inner-proof bundle the plugin emits: the cryptographic
-/// proof (the `plugin → prover` contract, consumed by `zkwrap-gnark`) plus the
-/// opaque `codegen` section (the `plugin → Composer` contract, baked into
-/// `meta.json` and consumed at deploy time; ignored by the prover).
-///
-/// The two are kept separate on purpose: `CanonicalInnerProof` stays the pure,
-/// system-agnostic crypto contract, and the system-specific `codegen` data rides
-/// alongside it here. See `zkwrap-core::inner` and ADR-0007.
-pub struct Canonicalized {
-    pub proof: CanonicalInnerProof,
-    pub codegen: serde_json::Value,
-}
-
-impl Canonicalized {
-    /// Persist the whole bundle to `dir`: `vk.bin`, `proof.bin`,
-    /// `public_inputs.bin`, and `meta.json` (with the `codegen` section).
-    pub fn write_to(&self, dir: &Path) -> std::io::Result<()> {
-        self.proof.write_to(dir, Some(&self.codegen))
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum CanonicalizeError {
@@ -61,13 +42,13 @@ pub enum CanonicalizeError {
 }
 
 /// Verify a RISC Zero Groth16 `receipt` against `image_id` and convert it into
-/// the canonical inner-proof bundle (I/O-free; call [`Canonicalized::write_to`]
+/// the canonical inner-proof bundle (I/O-free; call [`CanonicalBundle::write_to`]
 /// to persist). `receipt.verify` binds the proof to `image_id`, so a wrong
 /// `image_id` (or an invalid receipt) is rejected before anything is extracted.
 pub fn canonicalize(
     receipt: &Receipt,
     image_id: impl Into<Digest>,
-) -> Result<Canonicalized, CanonicalizeError> {
+) -> Result<CanonicalBundle<Risc0CodegenData>, CanonicalizeError> {
     let image_id: Digest = image_id.into();
     receipt
         .verify(image_id)
@@ -112,15 +93,15 @@ pub fn canonicalize(
     };
 
     // The per-guest codegen section the deploy-time Composer consumes
-    // (see `Risc0Codegen::wiring`). Opaque to the prover.
-    let codegen = serde_json::json!({
-        "image_id": hex::encode(image_id.as_bytes()),
-        "post_state_digest": hex::encode(post_state),
-        "control_root": hex::encode(control_root),
-        "bn254_control_id": hex::encode(bn254_control_id),
-    });
+    // (see `Risc0CodegenData::wiring`). Opaque to the prover.
+    let codegen = Risc0CodegenData {
+        image_id: Hex32(digest32(&image_id)),
+        post_state_digest: Hex32(post_state),
+        control_root: Hex32(control_root),
+        bn254_control_id: Hex32(bn254_control_id),
+    };
 
-    Ok(Canonicalized { proof, codegen })
+    Ok(CanonicalBundle { proof, codegen })
 }
 
 /// The fixed RISC Zero Groth16 verifying key, serialized into the canonical
@@ -247,17 +228,17 @@ mod tests {
 
         let hexf = |rel: &str| hex::encode(fixture(rel));
         assert_eq!(
-            c.codegen["control_root"].as_str().unwrap(),
+            hex::encode(c.codegen.control_root.0),
             hexf(&format!("{FIX}/control_root.bin"))
         );
         assert_eq!(
-            c.codegen["bn254_control_id"].as_str().unwrap(),
+            hex::encode(c.codegen.bn254_control_id.0),
             hexf(&format!("{FIX}/bn254_control_id.bin"))
         );
         assert_eq!(
-            c.codegen["image_id"].as_str().unwrap(),
+            hex::encode(c.codegen.image_id.0),
             hexf(&format!("{FIX}/image_id.bin"))
         );
-        assert_eq!(c.codegen["post_state_digest"].as_str().unwrap().len(), 64);
+        assert_eq!(hex::encode(c.codegen.post_state_digest.0).len(), 64);
     }
 }

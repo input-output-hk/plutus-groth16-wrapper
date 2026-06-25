@@ -2,7 +2,7 @@
 //! `outer_vk.json` (trusted-setup verifying key) and `outer_proof.json`
 //! (a single proof). These cross the language boundary as **data**, not as
 //! generated Aiken — codegen stays uniformly in Rust regardless of which
-//! prover produced them (ADR-0007).
+//! prover produced them.
 //!
 //! Schema: `docs/schemas/outer-proof-artifacts.md`. All point fields are
 //! lowercase hex (no `0x`), compressed BLS12-381 (48-byte G1, 96-byte G2),

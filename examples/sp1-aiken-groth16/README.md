@@ -29,7 +29,7 @@ inner axis differs: SP1 v6 has 5 public inputs —
 `[vkey_hash, committed_values_digest, exit_code, vk_root, proof_nonce]`.
 `vkey_hash`/`exit_code`/`vk_root` are baked, `committed_values_digest =
 SHA256(public_values) mod 2^253` is derived on-chain, and `proof_nonce` rides in
-the redeemer. See [`docs/research/sp1-artifact-format-v6.md`](../../docs/research/sp1-artifact-format-v6.md).
+the redeemer.
 
 ## Prerequisites
 

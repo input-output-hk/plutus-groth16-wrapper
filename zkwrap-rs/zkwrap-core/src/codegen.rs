@@ -34,7 +34,6 @@
 pub mod composer;
 pub mod outer_tests;
 
-use serde_json::Value;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -99,9 +98,6 @@ pub trait InnerCodegen {
     /// The generic, constant-free inner-layer source, vendored verbatim
     /// (via `include_str!`). Takes app-binding values as parameters.
     fn module_source(&self) -> &'static str;
-    /// Per-guest wiring derived from the canonical inner proof's
-    /// `meta.json.codegen` section (opaque to the prover binary).
-    fn wiring(&self, codegen: &Value) -> Result<InnerWiring, CodegenError>;
 }
 
 /// What an outer-layer backend contributes to the project:

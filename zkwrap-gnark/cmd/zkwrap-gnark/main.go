@@ -1,5 +1,5 @@
 // Command zkwrap-gnark wraps a BN254 Groth16 inner proof inside a
-// BLS12-381 Groth16 outer proof. See docs/adr/0004-gnark-prover-cli.md.
+// BLS12-381 Groth16 outer proof.
 package main
 
 import (

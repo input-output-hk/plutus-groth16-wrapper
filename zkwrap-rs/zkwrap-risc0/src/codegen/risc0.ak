@@ -8,8 +8,7 @@
 //
 // Reconstructs `claim_digest` on-chain from `journal_bytes` via the RISC Zero
 // `tagged_struct` hash convention (SHA256(SHA256(tag) ‖ children ‖ u32s_LE ‖
-// count_LE)), then assembles the 5 RISC Zero public inputs. See
-// docs/research/risc0-artifact-format.md §6, §6a.
+// count_LE)), then assembles the 5 RISC Zero public inputs.
 
 use aiken/builtin
 use aiken/primitive/bytearray

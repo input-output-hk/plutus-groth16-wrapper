@@ -14,8 +14,7 @@
 //
 // committed_values_digest is SP1's `hash_public_inputs`: SHA-256 of the committed
 // public values, with the top 3 bits of the big-endian digest masked off so it
-// fits in BN254 Fr — exactly reduction modulo 2^253. See
-// docs/research/sp1-artifact-format-v6.md §4.
+// fits in BN254 Fr — exactly reduction modulo 2^253.
 
 use aiken/builtin
 use aiken/primitive/bytearray

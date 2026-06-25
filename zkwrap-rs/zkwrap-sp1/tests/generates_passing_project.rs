@@ -16,7 +16,9 @@ use std::process::Command;
 
 use sp1_verifier::{Groth16Bn254Proof, SP1Proof};
 use zkwrap_core::{Groth16OuterProof, OuterProof, PlonkOuterProof};
-use zkwrap_sp1::{build_validator, canonicalize, Canonicalized, Sp1ValidatorRequest};
+use zkwrap_sp1::{
+    build_validator, canonicalize, CanonicalBundle, Sp1CodegenData, Sp1ValidatorRequest,
+};
 
 fn repo_path(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -54,7 +56,7 @@ fn factory_emits_aiken_check_passing_project_plonk() {
 
 /// Reconstruct the canonical SP1 bundle from the committed raw artifacts.
 /// `proof_bytes.bin` = 4-byte vkey prefix + 352-byte encoded_proof.
-fn sp1_canonical(public_values: &[u8]) -> Canonicalized {
+fn sp1_canonical(public_values: &[u8]) -> CanonicalBundle<Sp1CodegenData> {
     let proof_bytes = read_bytes("fixtures/sp1-hello-world/proof_bytes.bin");
     let manifest: serde_json::Value =
         serde_json::from_str(&read("fixtures/sp1-hello-world/manifest.json")).unwrap();

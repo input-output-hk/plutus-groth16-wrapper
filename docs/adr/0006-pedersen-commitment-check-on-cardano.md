@@ -190,7 +190,7 @@ All on-chain primitives are Plutus V3 builtins: `bls12_381_g1_uncompress`,
   hash preimage and Section 3 starts using the linear-combination coefficient.
   Re-read `verify.go` and revise this ADR before the verifier changes.
 - **Codegen.** The constants `g`, `g_sigma_neg`, and the IC array are baked at codegen
-  time per outer VK (ADR-0004); this ADR specifies what the code *does*, not how the
+  time per outer VK; this ADR specifies what the code *does*, not how the
   template is parameterised.
 - **The off-chain helper that produces `commitment_uncompressed`.** It is one line of
   gnark-crypto: `proof.Commitments[0].Marshal()`. The wrapper plugin (Phase 4) is the
@@ -206,5 +206,3 @@ All on-chain primitives are Plutus V3 builtins: `bls12_381_g1_uncompress`,
 - RFC 9380 §5.3.1 (`expand_message_xmd`)
 - Bowe–Gabizon, [eprint 2022/1072](https://eprint.iacr.org/2022/1072)
 - [`docs/schemas/outer-proof-artifacts.md`](../schemas/outer-proof-artifacts.md)
-- [`docs/adr/0004-gnark-prover-cli.md`](0004-gnark-prover-cli.md)
-- [`docs/adr/0004-rust-plugin-owns-aiken-codegen.md`](0004-rust-plugin-owns-aiken-codegen.md)
