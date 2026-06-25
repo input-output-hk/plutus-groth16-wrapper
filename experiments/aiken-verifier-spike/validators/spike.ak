@@ -4,7 +4,7 @@
 // against a single hard-coded outer-VK + outer-proof fixture produced by
 // `zkwrap-gnark` at MAX_INPUTS = 8 with the RISC Zero canonical inner proof.
 //
-// Two verifier layers (per ADR-0004 §"Two-layer Aiken validator"):
+// Two verifier layers:
 //   * `verify`        — outer layer: generic Groth16/BLS12-381 + Bowe–Gabizon binding.
 //   * `verify_risc0`  — inner layer: reconstruct the 5 RISC Zero public inputs from
 //                       `journal_bytes` + version constants, then delegate to the outer layer.

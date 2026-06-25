@@ -14,11 +14,9 @@ Setup writes a co-located bundle (`outer_pk.bin`, `outer_vk.json`,
 Together these form the contract between the gnark prover, the Rust plugins, and
 the Aiken PLONK codegen (`plonk.ak`).
 
-See also: [ADR-0004](../adr/0004-gnark-prover-cli.md),
-[canonical-inner-proof.md](./canonical-inner-proof.md),
-`docs/tmp/plonk-integration-plan.md`, and the validated de-risking spike
-`experiments/aiken-plonk-spike/` (the source of every transcript/encoding
-decision below).
+See also: [canonical-inner-proof.md](./canonical-inner-proof.md) and the validated
+de-risking spike `experiments/aiken-plonk-spike/` (the source of every
+transcript/encoding decision below).
 
 **Backend id:** `gnark-plonk-bls12381`.
 

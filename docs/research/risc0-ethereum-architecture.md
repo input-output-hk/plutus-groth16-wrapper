@@ -35,7 +35,7 @@ The on-chain code decomposes into three clearly separated layers:
 | Version constants (`CONTROL_ROOT`, `BN254_CONTROL_ID`) | `ControlID.sol` | `cargo xtask bootstrap-groth16`, per risc0 release |
 | Claim decoding, selector check, public-input wiring | `RiscZeroGroth16Verifier.sol` | Static, version-independent |
 
-**Mapping to ADR-0004:** This confirms our design. gnark produces the BLS12-381 outer
+This confirms our design. gnark produces the BLS12-381 outer
 verifier (≈ `Groth16Verifier.sol`). The plugin codegen emits system-specific Aiken logic with
 baked-in constants (≈ `ControlID.sol` + `RiscZeroGroth16Verifier.sol` merged). The
 version-independent BLS12-381 verification logic stays generic.

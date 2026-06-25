@@ -6,8 +6,6 @@ Groth16 proof produced by a plugin and consumed by an outer backend prover binar
 It is the contract between the Rust plugin library and the Go gnark prover (or future Halo2
 prover). Both sides implement their serialization independently against this spec.
 
-See also: [ADR-0003](../adr/0003-file-based-plugin-prover-boundary.md).
-
 ---
 
 ## On-disk layout

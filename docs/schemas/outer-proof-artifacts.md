@@ -5,8 +5,7 @@ a co-located bundle (`outer_pk.bin`, `outer_vk.json`, `circuit.r1cs`); prove wri
 a single self-contained file (`outer_proof.json`). Together these form the
 contract between the gnark prover, the Rust plugins, and Aiken codegen.
 
-See also: [ADR-0004](../adr/0004-gnark-prover-cli.md),
-[canonical-inner-proof.md](./canonical-inner-proof.md).
+See also: [canonical-inner-proof.md](./canonical-inner-proof.md).
 
 ---
 
