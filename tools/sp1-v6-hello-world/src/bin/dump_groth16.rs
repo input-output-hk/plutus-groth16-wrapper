@@ -1,8 +1,7 @@
 //! Generates a real SP1 (v6.x) Groth16/BN254 proof and dumps its artifacts, so
 //! we can document the current artifact format and feed the zkwrap-sp1 rework.
 //!
-//! Mirrors the v3.0.0 `experiments/sp1-hello-world` dump, updated to the
-//! sp1-sdk 6.2.4 blocking CPU API. Guest: `multiply(17, 23)` → commits `391`.
+//! Targets the sp1-sdk 6.2.4 blocking CPU API. Guest: `multiply(17, 23)` → commits `391`.
 //!
 //! The on-chain proof bytes (`proof.bytes()`) decompose as:
 //!   [0..4]    groth16 vkey-hash prefix
