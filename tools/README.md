@@ -1,4 +1,4 @@
-# Experiments
+# Tools
 
 Standalone provers that regenerate the raw per-system proof artifacts
 committed under [`fixtures/`](../fixtures/). Each proves `multiply(17, 23) = 391`

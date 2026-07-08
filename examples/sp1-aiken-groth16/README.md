@@ -64,10 +64,10 @@ cd examples/sp1-aiken-groth16
 cargo run --release
 ```
 
-> **Note:** unlike `experiments/sp1-v6-hello-world`, this example ships no
+> **Note:** unlike `tools/sp1-v6-hello-world`, this example ships no
 > committed guest ELF — `include_elf!` reads the one `build.rs` compiles. If
-> `SP1_SKIP_PROGRAM_BUILD=true` is set (e.g. carried over from running the
-> experiment), the build is skipped and you'll get
+> `SP1_SKIP_PROGRAM_BUILD=true` is set (e.g. carried over from running that
+> tool), the build is skipped and you'll get
 > `couldn't read .../multiply: No such file or directory`. Unset it with:
 > `unset SP1_SKIP_PROGRAM_BUILD`
 
