@@ -1,0 +1,13 @@
+# App project — forked from the generated `steel-verifier` output.
+# `lib/zkwrap/*.ak` are vendored generated modules (replace wholesale on
+# regeneration); `lib/steel/` and `validators/` are app-owned.
+name = "zkwrap/steel_erc20_app"
+version = "0.0.0"
+plutus = "v3"
+compiler = "1.1.22"
+description = "Steel ERC-20 showcase: app policy over an authenticated Ethereum state journal."
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v3.0.0"
+source = "github"

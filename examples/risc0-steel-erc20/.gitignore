@@ -1,0 +1,5 @@
+/target
+/generated
+Cargo.lock
+app/build
+app/plutus.json

@@ -1,0 +1,30 @@
+[package]
+name = "risc0-steel-erc20"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[features]
+default = ["prove"]
+prove = ["risc0-zkvm/prove"]
+
+[dependencies]
+risc0-steel-erc20-methods = { path = "methods" }
+risc0-zkvm = "^3.0.5"
+risc0-steel = { git = "https://github.com/boundless-xyz/steel", tag = "v3.0.0", features = ["host"] }
+
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
+
+alloy-primitives = "1.5"
+alloy-sol-types = "1.5"
+anyhow = "1"
+hex = "0.4"
+tokio = { version = "1", features = ["rt-multi-thread"] }
+url = "2.5"
+
+# The zkwrap toolkit
+zkwrap-core = { path = "../../zkwrap-rs/zkwrap-core" }
+zkwrap-prover = { path = "../../zkwrap-rs/zkwrap-prover" }
+zkwrap-risc0 = { path = "../../zkwrap-rs/zkwrap-risc0" }
