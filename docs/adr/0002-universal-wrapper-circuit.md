@@ -16,6 +16,6 @@ Each added slot costs ~46K constraints (~0.25s prove time), dominated by the IC 
 
 `MAX_INPUTS = 8` is the chosen point on the cost curve: enough to cover both Phase 1 fixtures (RISC Zero `n_real = 5`, SP1 `n_real = 2`) with a small amount of headroom, while staying ~11% above the minimum constraint cost. `MAX_INPUTS = 16` would have added ~510K constraints and ~2s of prove time for slack we cannot point at a specific consuming system, and `MAX_INPUTS = 5` left no room at all for any system with more than five public outputs.
 
-The benchmark experiment lives at `experiments/risc0-gnark-verifier/recursive/`. The off-circuit `InnerVKHash` is computed with the Poseidon2/BLS12-381 parameters in [ADR-0005](0005-poseidon2-bls12381-for-inner-vk-hash.md).
+These figures come from the Phase 1 benchmark spike (a gnark recursive-verifier prototype, since removed). The off-circuit `InnerVKHash` is computed with the Poseidon2/BLS12-381 parameters in [ADR-0005](0005-poseidon2-bls12381-for-inner-vk-hash.md).
 
 **Soundness note:** for inner systems that pad with zeros, the Aiken validator must explicitly check that the padded input slots equal zero. This check cannot be omitted: if the inner VK is a private witness (as it is in the current gnark `std/recursion/groth16` design), an adversary could supply a padded VK with non-identity IC points for the zero-input slots and pass the pairing check with arbitrary values in those slots.

@@ -98,7 +98,7 @@ See [`examples/`](examples/) for a runnable end-to-end examples for Risc0 and SP
 | `examples/risc0-steel-erc20/` | **Ethereum-state showcase**: proves an ERC-20 balance via RISC Zero Steel and enforces an app policy on it from a Cardano validator (the generate → copy → extend workflow). |
 | `fixtures/` | Committed test fixtures: trusted setups, canonical inner proofs, outer proofs, and per-system source artifacts. |
 | `docs/` | `adr/` decisions · `schemas/` data contracts. |
-| `experiments/` | Exploratory spikes (e.g. the hand-written Aiken verifier the generator was lifted from). |
+| `experiments/` | Standalone provers (`risc0-hello-world`, `sp1-v6-hello-world`) that were used to generate fixtures in `fixtures/`. |
 
 ## License
 

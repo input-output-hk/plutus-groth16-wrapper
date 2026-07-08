@@ -14,9 +14,7 @@ Setup writes a co-located bundle (`outer_pk.bin`, `outer_vk.json`,
 Together these form the contract between the gnark prover, the Rust plugins, and
 the Aiken PLONK codegen (`plonk.ak`).
 
-See also: [canonical-inner-proof.md](./canonical-inner-proof.md) and the validated
-de-risking spike `experiments/aiken-plonk-spike/` (the source of every
-transcript/encoding decision below).
+See also: [canonical-inner-proof.md](./canonical-inner-proof.md).
 
 **Backend id:** `gnark-plonk-bls12381`.
 
@@ -287,8 +285,7 @@ A valid proof verifies under *any* λ, so a deterministic λ preserves soundness
 e( acc, [1]₂ ) · e( −folded_quotient, [s]₂ ) == 1
 ```
 where `acc` and `folded_quotient` are assembled from the two openings folded by
-`λ` (full scalar formulas in `experiments/aiken-plonk-spike/refverify/main.go`
-and the generated `plonk.ak`).
+`λ` (full scalar formulas in the generated `plonk.ak` and its Jinja template).
 
 ---
 
