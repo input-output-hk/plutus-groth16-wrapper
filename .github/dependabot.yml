@@ -11,6 +11,14 @@ updates:
       arkworks:
         patterns:
           - "ark-*"
+    ignore:
+      # zkwrap-sp1 must stay on ark 0.5: sp1-verifier's `ark` feature exposes
+      # ark 0.5 types (still ^0.5 as of sp1-verifier 6.3.1).
+      # Patch updates stay enabled; revisit when sp1-verifier moves to ark 0.6.
+      - dependency-name: "ark-*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   # Go module (gnark, gnark-crypto, ...).
   - package-ecosystem: gomod
