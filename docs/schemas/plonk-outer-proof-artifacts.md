@@ -160,8 +160,8 @@ reimplementing gnark's exact compressed↔uncompressed conversion (a y-coordinat
 
 Produced by
 `zkwrap-gnark prove --backend plonk --inner <inner-proof-dir> --setup <setup-dir> --out <outer-proof.json>`.
-Consumed by `zkwrap-gnark verify --proof <outer-proof.json>` and by the plugin's
-Aiken codegen / test-fixture machinery.
+Consumed by `zkwrap-gnark verify --proof <outer-proof.json> --setup <setup-dir>`
+and by the plugin's Aiken codegen / test-fixture machinery.
 
 ```json
 {

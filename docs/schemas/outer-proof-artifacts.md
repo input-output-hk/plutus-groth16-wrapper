@@ -18,7 +18,7 @@ See also: [canonical-inner-proof.md](./canonical-inner-proof.md).
   circuit.r1cs       # gnark native compiled R1CS
 ```
 
-All three files are produced by `zkwrap-gnark unsafe-setup --max-inputs N --out <setup-dir>`.
+All three files are produced by `zkwrap-gnark unsafe-setup --backend groth16 --max-inputs N --out <setup-dir>`.
 The directory is consumed as a bundle by `prove` and `verify` via `--setup <setup-dir>`.
 
 ### `outer_pk.bin` — Outer proving key
@@ -95,8 +95,8 @@ This is what gnark's `point.Bytes()` returns and what Cardano's `bls12_381_G1_un
 ```
 
 Produced by `zkwrap-gnark prove --inner <inner-proof-dir> --setup <setup-dir> --out <outer-proof.json>`.
-Consumed by `zkwrap-gnark verify --proof <outer-proof.json>` and by the
-plugin's Aiken codegen / test-fixture machinery.
+Consumed by `zkwrap-gnark verify --proof <outer-proof.json> --setup <setup-dir>`
+and by the plugin's Aiken codegen / test-fixture machinery.
 
 ```json
 {
