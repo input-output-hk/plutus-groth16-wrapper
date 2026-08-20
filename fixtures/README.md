@@ -32,16 +32,16 @@ From the `zkwrap-gnark` module root:
 go run ./cmd/gen-testdata
 
 # outer trusted setup (MAX_INPUTS must fit the inner n_real; 8 here)
-go run . unsafe-setup --max-inputs 8 --out ../fixtures/groth16-setup
+go run ./cmd/zkwrap-gnark unsafe-setup --backend groth16 --max-inputs 8 --out ../fixtures/groth16-setup
 
 # outer proof over the RISC Zero canonical inner bundle
-go run . prove \
+go run ./cmd/zkwrap-gnark prove \
   --inner ../fixtures/canonical-inner/risc0-hello-world \
   --setup ../fixtures/groth16-setup \
   --out   ../fixtures/outer-proofs/risc0-groth16-outer-proof.json
 
 # outer proof over the SP1 canonical inner bundle (reuses the same setup)
-go run . prove \
+go run ./cmd/zkwrap-gnark prove \
   --inner ../fixtures/canonical-inner/sp1-hello-world \
   --setup ../fixtures/groth16-setup \
   --out   ../fixtures/outer-proofs/sp1-groth16-outer-proof.json
@@ -49,10 +49,10 @@ go run . prove \
 # --- PLONK outer backend (num_inputs must equal the inner n_real exactly; 5) ---
 # SRS gen + PK load are heavy: run setup/prove against a native-fs setup dir
 # (not /mnt) and copy only outer_vk.json back into fixtures/plonk-setup.
-go run . unsafe-setup --backend plonk --max-inputs 5 --out "$SETUP"
-go run . prove --inner ../fixtures/canonical-inner/risc0-hello-world \
+go run ./cmd/zkwrap-gnark unsafe-setup --backend plonk --max-inputs 5 --out "$SETUP"
+go run ./cmd/zkwrap-gnark prove --inner ../fixtures/canonical-inner/risc0-hello-world \
   --setup "$SETUP" --out ../fixtures/outer-proofs/risc0-plonk-outer-proof.json
-go run . prove --inner ../fixtures/canonical-inner/sp1-hello-world \
+go run ./cmd/zkwrap-gnark prove --inner ../fixtures/canonical-inner/sp1-hello-world \
   --setup "$SETUP" --out ../fixtures/outer-proofs/sp1-plonk-outer-proof.json
 ```
 

@@ -54,7 +54,7 @@ export ZKWRAP_GNARK_BIN=/tmp/zkwrap-gnark
 # 2. Generate the outer trusted setup (one-time; writes a ~1 GB proving key).
 #    MAX_INPUTS must be ≥ the inner proof's n_real (SP1 v6 = 5); 8 matches the
 #    committed verifying key.
-"$ZKWRAP_GNARK_BIN" unsafe-setup --max-inputs 8 --out "$HOME/zkwrap-setup"
+"$ZKWRAP_GNARK_BIN" unsafe-setup --backend groth16 --max-inputs 8 --out "$HOME/zkwrap-setup"
 export ZKWRAP_SETUP_DIR="$HOME/zkwrap-setup"
 
 # 3. Run the full live pipeline (release; local CPU Groth16 proving is slow).

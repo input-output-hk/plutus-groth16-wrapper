@@ -162,7 +162,7 @@ fn resolve_setup_dir() -> Result<PathBuf, Box<dyn std::error::Error + Send + Syn
     if !dir.join("outer_pk.bin").exists() {
         return Err(format!(
             "setup dir {} has no outer_pk.bin. Regenerate it:\n    \
-             {} unsafe-setup --max-inputs 8 --out {}",
+             {} unsafe-setup --backend groth16 --max-inputs 8 --out {}",
             dir.display(),
             "zkwrap-gnark",
             dir.display()
